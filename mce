@@ -1,0 +1,59 @@
+#!/bin/bash
+# MCE_LAMP
+# Version: 1.0
+# Author: Mbrother
+# Change log:
+
+source /var/mce/script/variable_common
+source ${BASH_DIR}/lang
+[[ -f /var/mce/custom/lang ]] && source /var/mce/custom/lang
+
+# Print space
+printf_s(){
+    if [ $1 -le 0 ]
+    then
+        echo ""
+    else
+        printf '%0.s ' $(seq 1 $1)
+    fi
+}
+
+L_LANG_CREATE_HOST=$(expr 22 - ${#LANG_CREATE_HOST})
+L_LANG_DETETE_HOST=$(expr 22 - ${#LANG_DETETE_HOST})
+L_LANG_BACKUP_HOST=$(expr 22 - ${#LANG_BACKUP_HOST})
+L_LANG_RESTORE_BACKUP=$(expr 22 - ${#LANG_RESTORE_BACKUP})
+L_LANG_EXIT=$(expr 22 - ${#LANG_EXIT})
+
+CHOICE=1
+while [ "${CHOICE}" != "X" ]
+do
+    echo " ┌─────────────────────────────────────────────┐"
+    echo " │                  MCE - LEMP                 │"
+    echo " └─────────────────────────────────────────────┘"
+    echo " 1. ${LANG_CREATE_HOST} `printf_s ${L_LANG_CREATE_HOST}` a. ${LANG_CLEAR_CACHE} "
+    echo " 2. ${LANG_DETETE_HOST} `printf_s ${L_LANG_DETETE_HOST}` b. ${LANG_AUTO_BACKUP} "
+    echo " 3. ${LANG_BACKUP_HOST} `printf_s ${L_LANG_BACKUP_HOST}` c. ${LANG_CREATE_SSL} "
+    echo " 4. ${LANG_RESTORE_BACKUP} `printf_s ${L_LANG_RESTORE_BACKUP}` d. ${LANG_SHOW_INFO} "
+    echo " ----------------------------------------------- "
+    echo " X: ${LANG_EXIT} `printf_s ${L_LANG_EXIT}` A: ${LANG_ADVANCED_OPTION}"
+    read -p " ${LANG_CHOICE} " CHOICE
+    if [ -z "${CHOICE}" ]
+    then
+        CHOICE=1
+        echo -e "${RED}${LANG_MCE1}${REMOVE}"
+        continue
+    fi
+    case ${CHOICE} in
+        1) ${BASH_DIR}/create_full;;
+        2) ${BASH_DIR}/delete_user;;
+        3) ${BASH_DIR}/backup_user;;
+        4) ${BASH_DIR}/restore_backup;;
+        a) ${BASH_DIR}/clear_cache;;
+        b) ${BASH_DIR}/auto_backup;;
+        c) ${BASH_DIR}/create_ssl_letsencrypt;;
+        d) ${BASH_DIR}/show_info;;
+        A) ${BASH_DIR}/advanced_option; CHOICE="X";;
+        X) echo -e " ${GREEN}${LANG_MCE2}${REMOVE}";;
+        *) echo -e "${RED}${LANG_MCE3} '${CHOICE}'. ${LANG_MCE1}${REMOVE}";;
+    esac
+done

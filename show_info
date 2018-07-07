@@ -1,0 +1,284 @@
+#!/bin/bash
+# MCE_LEMP show informations of server
+# Version: 1.0
+# Author: mbrother
+# Change log:
+
+source /var/mce/script/variable_common
+source ${BASH_DIR}/lang
+[[ -f /var/mce/custom/lang ]] && source /var/mce/custom/lang
+CREATE_FULL=$2
+
+# Print space
+printf_s(){
+    if [ $1 -le 0 ]
+    then
+        echo ""
+    else
+        printf '%0.s ' $(seq 1 $1)
+    fi
+}
+
+# Print ─
+printf_c(){
+    if [ $1 -le 0 ]
+    then
+        echo ""
+    else
+        printf '%0.s─' $(seq 1 $1)
+    fi
+}
+
+# Show users
+show_user(){
+    if [ -z "$(ls ${USER_DIR})" ]
+    then
+        if [ "${CREATE_FULL}" == "CREATE_FULL" ]
+        then
+            :
+        else
+            echo    " ┌─`printf_c ${#LANG_SHOW_INFO1}`─┐"
+            echo -e " │ ${RED}${LANG_SHOW_INFO1}${REMOVE} │"
+            echo    " └─`printf_c ${#LANG_SHOW_INFO1}`─┘"
+        fi
+    else
+        echo    " ┌─`printf_c ${#LANG_SHOW_INFO2}`─┐"
+        echo -e " │ ${GREEN}${LANG_SHOW_INFO2}${REMOVE} │"
+        echo    " └─`printf_c ${#LANG_SHOW_INFO2}`─┘"
+        USER_COUNT=`ls ${USER_DIR} | wc -l`
+        if [ ${USER_COUNT} -lt 8 ]
+        then
+            ls ${USER_DIR}
+        elif [ ${USER_COUNT} -lt 16 ]
+        then
+            ls ${USER_DIR} | pr -2 -t
+        elif [ ${USER_COUNT} -lt 24 ]
+        then
+            ls ${USER_DIR} | pr -3 -t
+        else
+            ls ${USER_DIR} | pr -4 -t
+        fi
+    fi
+}
+
+# Show domains
+show_domain(){
+    if [ -z "$(ls ${USER_DIR})" ]
+    then
+        if [ "${CREATE_FULL}" == "CREATE_FULL" ]
+        then
+            :
+        else
+            echo    " ┌─`printf_c ${#LANG_SHOW_INFO3}`─┐"
+            echo -e " │ ${RED}${LANG_SHOW_INFO3}${REMOVE} │"
+            echo    " └─`printf_c ${#LANG_SHOW_INFO3}`─┘"
+        fi
+    fi
+    if [ $(ls ${USER_DIR} | wc -l) -ge 1 ]
+    then
+        if [ -z "$(ls ${USER_DIR}/* | grep domain)" ]
+        then
+            echo    " ┌─`printf_c ${#LANG_SHOW_INFO3}`─┐"
+            echo -e " │ ${RED}${LANG_SHOW_INFO3}${REMOVE} │"
+            echo    " └─`printf_c ${#LANG_SHOW_INFO3}`─┘"
+        else
+            echo    " ┌─`printf_c ${#LANG_SHOW_INFO4}`─┐"
+            echo -e " │ ${GREEN}${LANG_SHOW_INFO4}${REMOVE} │"
+            echo    " └─`printf_c ${#LANG_SHOW_INFO4}`─┘"
+            DOMAIN_COUNT=`cat ${USER_DIR}/*/domain | wc -l`
+            if [ ${DOMAIN_COUNT} -lt 8 ]
+            then
+                cat ${USER_DIR}/*/domain
+            elif [ ${DOMAIN_COUNT} -lt 16 ]
+            then
+                cat ${USER_DIR}/*/domain | pr -2 -t
+            elif [ ${DOMAIN_COUNT} -lt 24 ]
+            then
+                cat ${USER_DIR}/*/domain | pr -3 -t
+            else
+                cat ${USER_DIR}/*/domain | pr -4 -t
+            fi
+        fi
+    fi
+}
+
+# Show databases
+show_database(){
+    L_LANG_SHOW_INFO9=$(expr 10 - ${#LANG_SHOW_INFO9})
+
+    if [ -z "$(ls ${USER_DIR})" ]
+    then
+        echo    " ┌─`printf_c ${#LANG_SHOW_INFO5}`─┐"
+        echo -e " │ ${RED}${LANG_SHOW_INFO5}${REMOVE} │"
+        echo    " └─`printf_c ${#LANG_SHOW_INFO5}`─┘"
+    else
+        cat ${USER_DIR}/*/db | cut -d ":" -f 1,2 > /tmp/list_db
+        L_MAX_DB=`cat ${USER_DIR}/*/db | cut -d":" -f1 | wc -L`
+        if [ ${L_MAX_DB} -lt ${#LANG_SHOW_INFO7} ]
+        then
+            LENG_DB=${#LANG_SHOW_INFO7}
+            L_LANG_SHOW_INFO7=0
+        else
+            LENG_DB=${L_MAX_DB}
+            L_LANG_SHOW_INFO7=$(expr ${LENG_DB} - ${#LANG_SHOW_INFO7})
+        fi
+        L_MAX_DU=`cat ${USER_DIR}/*/db | cut -d":" -f2 | wc -L`
+        if [ ${L_MAX_DU} -lt ${#LANG_SHOW_INFO8} ]
+        then
+            LENG_DU=${#LANG_SHOW_INFO8}
+            L_LANG_SHOW_INFO8=0
+        else
+            LENG_DU=${L_MAX_DU}
+            L_LANG_SHOW_INFO8=$(expr ${LENG_DU} - ${#LANG_SHOW_INFO8})
+        fi
+        echo  -e "  ${GREEN}${LANG_SHOW_INFO6}${REMOVE}"
+        echo " ┌─`printf_c ${LENG_DB}`─┬─`printf_c ${LENG_DU}`─┬────────────┐"
+        echo " │ ${LANG_SHOW_INFO7}`printf_s ${L_LANG_SHOW_INFO7}` │ ${LANG_SHOW_INFO8}`printf_s ${L_LANG_SHOW_INFO8}` │ ${LANG_SHOW_INFO9}`printf_s ${L_LANG_SHOW_INFO9}` │"
+        for i in $(cat /tmp/list_db)
+        do
+            DB_NAME=`echo $i | cut -d ":" -f 1`
+            DB_USER=`echo $i | cut -d ":" -f 2`
+            DISK_DB=`du -s ${MYSQL_DIR}/${DB_NAME} | awk '{print $1}'`
+            if [ ${DISK_DB} -gt 1073741824 ]
+            then
+                DISK_DB=`awk "BEGIN {printf \"%.2f\n\", ${DISK_DB}/1024/1024/1024}"`
+                DISK_DB="${DISK_DB} TB"
+            elif [ ${DISK_DB} -gt 1048576 ]
+            then
+                DISK_DB=`awk "BEGIN {printf \"%.2f\n\", ${DISK_DB}/1024/1024}"`
+                DISK_DB="${DISK_DB} GB"
+            else
+                DISK_DB=`awk "BEGIN {printf \"%.2f\n\", ${DISK_DB}/1024}"`
+                DISK_DB="${DISK_DB} MB"
+            fi
+            L_DB_NAME=$(expr ${LENG_DB} - ${#DB_NAME})
+            L_DB_USER=$(expr ${LENG_DU} - ${#DB_USER})
+            L_DISK_DB=$(expr 10 - ${#DISK_DB})
+            echo " ├─`printf_c ${LENG_DB}`─┼─`printf_c ${LENG_DU}`─┼────────────┤"
+            echo " │ ${DB_NAME}`printf_s ${L_DB_NAME}` │ ${DB_USER}`printf_s ${L_DB_USER}` │ ${DISK_DB}`printf_s ${L_DISK_DB}` │"
+        done
+        echo " └─`printf_c ${LENG_DB}`─┴─`printf_c ${LENG_DU}`─┴────────────┘"
+    fi
+    rm -f /tmp/list_db
+}
+
+# Show statistic
+show_statistic(){
+    L_LANG_SHOW_INFO14=$(expr 10 - ${#LANG_SHOW_INFO14})
+    L_LANG_SHOW_INFO15=$(expr 10 - ${#LANG_SHOW_INFO15})
+    L_LANG_SHOW_INFO16=$(expr 7 - ${#LANG_SHOW_INFO16})
+
+    if [ -z "$(ls ${USER_DIR})" ]
+    then
+        echo    " ┌─`printf_c ${#LANG_SHOW_INFO10}`─┐"
+        echo -e " │ ${RED}${LANG_SHOW_INFO10}${REMOVE} │"
+        echo    " └─`printf_c ${#LANG_SHOW_INFO10}`─┘"
+    else
+        ls -1 ${USER_DIR} > /tmp/list_user
+        L_MAX_USER=`ls -1 ${USER_DIR} | wc -L`
+        if [ ${L_MAX_USER} -lt ${#LANG_SHOW_INFO12} ]
+        then
+            LENG_U=${#LANG_SHOW_INFO12}
+            L_LANG_SHOW_INFO12=0
+        else
+            LENG_U=${L_MAX_USER}
+            L_LANG_SHOW_INFO12=$(expr ${LENG_U} - ${#LANG_SHOW_INFO12})
+        fi
+
+        L_MAX_DOMAIN=`cat ${USER_DIR}/*/domain | wc -L`
+        if [ ${L_MAX_DOMAIN} -lt ${#LANG_SHOW_INFO13} ]
+        then
+            LENG_D=${#LANG_SHOW_INFO13}
+            L_LANG_SHOW_INFO13=0
+        else
+            LENG_D=${L_MAX_DOMAIN}
+            L_LANG_SHOW_INFO13=$(expr ${LENG_D} - ${#LANG_SHOW_INFO13})
+        fi
+        echo -e "  ${GREEN}${LANG_SHOW_INFO11}${REMOVE}"
+        echo " ┌─`printf_c ${LENG_U}`─┬─`printf_c ${LENG_D}`─┬─────┬────────────┬────────────┬─────────┐"
+        echo " │ ${LANG_SHOW_INFO12}`printf_s ${L_LANG_SHOW_INFO12}` │ ${LANG_SHOW_INFO13}`printf_s ${L_LANG_SHOW_INFO13}` │ PHP │ ${LANG_SHOW_INFO14}`printf_s ${L_LANG_SHOW_INFO14}` │ ${LANG_SHOW_INFO15}`printf_s ${L_LANG_SHOW_INFO15}` │ ${LANG_SHOW_INFO16}`printf_s ${L_LANG_SHOW_INFO16}` │"
+        for i in $(cat /tmp/list_user)
+        do
+            DOMAIN=$(cat ${USER_DIR}/${i}/domain)
+            DISK_USE=$(du -s --exclude logs /home/$i | awk '{print $1}')
+            PHP=$(cat ${USER_DIR}/${i}/php)
+            if [ ${DISK_USE} -gt 1073741824 ]
+            then
+                DISK_USE=`awk "BEGIN {printf \"%.2f\n\", ${DISK_USE}/1024/1024/1024}"`
+                DISK_USE="${DISK_USE} TB"
+            elif [ ${DISK_USE} -gt 1048576 ]
+            then
+                DISK_USE=`awk "BEGIN {printf \"%.2f\n\", ${DISK_USE}/1024/1024}"`
+                DISK_USE="${DISK_USE} GB"
+            else
+                DISK_USE=`awk "BEGIN {printf \"%.2f\n\", ${DISK_USE}/1024}"`
+                DISK_USE="${DISK_USE} MB"
+            fi
+
+            if [ -f /home/${i}/logs/traffic.log ]
+            then
+                BANDWIDTH=$(cat /home/${i}/logs/traffic.log | awk '{ sum_received += $1; sum_sent +=$2; sum = sum_received + sum_sent } END {print int(sum/1024/1024)}')
+                if [ ${BANDWIDTH} -gt 1048576 ]
+                then
+                    BANDWIDTH=`awk "BEGIN {printf \"%.2f\n\", ${BANDWIDTH}/1024/1024}"`
+                    BANDWIDTH="${BANDWIDTH} TB"
+                elif [ ${BANDWIDTH} -gt 1024 ]
+                then
+                    BANDWIDTH=`awk "BEGIN {printf \"%.2f\n\", ${BANDWIDTH}/1024}"`
+                    BANDWIDTH="${BANDWIDTH} GB"
+                else
+                    BANDWIDTH="${BANDWIDTH} MB"
+                fi
+            else
+                BANDWIDTH="0 MB"
+            fi
+            if [ -d /backup ]
+            then
+                BACKUP_COUNT_USER=`ls -1 /backup | grep -e "cpmove-${i}\." -e "^${i}_" -e "user.*.${i}.tar.gz" | wc -l`
+            else
+                BACKUP_COUNT_USER=0
+            fi
+            L_USER=$(expr ${LENG_U} - ${#i})
+            L_DOMAIN=$(expr ${LENG_D} - ${#DOMAIN})
+            L_DISK_USE=$(expr 10 - ${#DISK_USE})
+            L_BANDWIDTH=$(expr 10 - ${#BANDWIDTH})
+            L_BACKUP_COUNT_USER=$(expr 7 - ${#BACKUP_COUNT_USER})
+            echo " ├─`printf_c ${LENG_U}`─┼─`printf_c ${LENG_D}`─┼─────┼────────────┼────────────┼─────────┤"
+            echo " │ ${i}`printf_s ${L_USER}` │ ${DOMAIN}`printf_s ${L_DOMAIN}` │ ${PHP} │ ${DISK_USE}`printf_s ${L_DISK_USE}` │ ${BANDWIDTH}`printf_s ${L_BANDWIDTH}` │ ${BACKUP_COUNT_USER}`printf_s ${L_BACKUP_COUNT_USER}` │"
+        done
+            echo " └─`printf_c ${LENG_U}`─┴─`printf_c ${LENG_D}`─┴─────┴────────────┴────────────┴─────────┘"
+    fi
+    rm -f /tmp/list_user
+}
+
+case $1 in
+    USER) show_user; exit;;
+    DOMAIN) show_domain; exit;;
+    DATABASE) show_database; exit;;
+    STATISTIC) show_statistic; exit;;
+esac
+
+echo " ${LANG_SHOW_INFO17}"
+echo " ${LANG_SHOW_INFO18}"
+echo " ${LANG_SHOW_INFO19}"
+echo " ${LANG_SHOW_INFO20}"
+echo " ${LANG_SHOW_INFO21}"
+echo " ${LANG_SHOW_INFO22}"
+false
+while [ $? -eq 1 ]
+do
+    read -p " ${LANG_SHOW_INFO23} " CHOICE
+    ${BASH_DIR}/check_value number "${CHOICE}" 4
+    if [ $? -eq 1 ]
+    then
+        echo -e "${RED} ${LANG_SHOW_INFO24} 4${REMOVE}"
+        false
+    fi
+done
+
+case ${CHOICE} in
+    1) show_user;;
+    2) show_domain;;
+    3) show_database;;
+    4) show_statistic;;
+esac

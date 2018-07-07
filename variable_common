@@ -1,0 +1,30 @@
+#!/bin/bash
+# MCE_LEMP variables common
+# Version: 1.0
+# Author: mbrother
+# Change log:
+
+# Set color variables
+GREEN='\e[92m'
+RED='\e[31m'
+REMOVE='\e[0m'
+
+# Set directory variables
+BASH_DIR="/var/mce/script"
+USER_DIR="/var/mce/user"
+VHOST_DIR="/etc/nginx/conf.d"
+SOURCE_DIR="/var/mce/source_code"
+FPM_DIR="/etc/php-fpm.d"
+CACHE_DIR="/etc/nginx/cache"
+RESTORE_DIR="/home/tmp/restore"
+MYSQL_DIR="/var/lib/mysql"
+
+# Set list support PHP
+PHP_MAIN=`php -v | head -1 | cut -d" " -f2 | cut -d"." -f1,2`
+List_PHP=(5.4 5.5 5.6 7.0 7.1 7.2)
+
+# Set other variables
+OS_VER=`rpm -E %centos`
+OS_ARCH=`uname -m`
+MYSQL=`which mysql`
+IPADDRESS=`ip route get 1 | awk '{print $NF;exit}'`

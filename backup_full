@@ -1,0 +1,52 @@
+#!/bin/bash
+# MCE_LEMP backup all accounts
+# Version: 1.0
+# Author: mbrother
+# Change log:
+
+source /var/mce/script/variable_common
+source ${BASH_DIR}/lang
+[[ -f /var/mce/custom/lang ]] && source /var/mce/custom/lang
+
+[ ! -d /backup ] && mkdir /backup
+[ ! -d /tmp/backup ] && mkdir /tmp/backup
+
+ls -1 ${USER_DIR} > /tmp/backup/listuser.txt
+
+for i in $(cat /tmp/backup/listuser.txt)
+do
+    echo -e " ${GREEN}${LANG_BACKUP_FULL1} ${i}...${REMOVE}"
+    BACKUP=""${i}"_`date '+%d-%m-%Y'`"
+    mkdir /"${BACKUP}"
+    cd /"${BACKUP}"
+    mkdir mysql homedir conf
+    if [ -f ${USER_DIR}/"${i}"/db ]
+    then
+        cat ${USER_DIR}/"${i}"/db | cut -f 1 -d ":" > /tmp/backup/${i}.txt
+        for j in $(cat /tmp/backup/${i}.txt)
+        do
+            mysqldump ${j} > /tmp/backup/${j}.sql
+        done
+        mv /tmp/backup/${j}*.sql /"${BACKUP}"/mysql/
+    fi
+    command -v rsync >/dev/null 2>&1 || yum -y install rsync
+    rsync -a ${USER_DIR}/"${i}"/ /"$BACKUP"/"${i}"
+    rsync -a /home/"${i}"/ /"${BACKUP}"/homedir --exclude logs
+    DOMAIN=`cat ${USER_DIR}/"${i}"/domain`
+    PHP_MAIN1=`php -v | head -1 | cut -d" " -f2 | cut -d"." -f1,2 | sed 's/\.//'`
+    PHP_VER1=`cat ${USER_DIR}/"${i}"/php | sed 's/\.//'`
+    if [ "${PHP_VER1}" == "${PHP_MAIN1}" ]
+    then
+        FPM_DIR="/etc/php-fpm.d"
+    else
+        FPM_DIR="/etc/opt/remi/php${PHP_VER1}/php-fpm.d"
+    fi
+    cp ${FPM_DIR}/"${DOMAIN}".conf /"${BACKUP}"/conf/php-fpm."${DOMAIN}".conf
+    cp $VHOST_DIR/"${DOMAIN}".conf /"${BACKUP}"/conf/nginx."${DOMAIN}".conf
+    chown -R root:root /${BACKUP}
+    cd /
+    tar -zcf /backup/"${BACKUP}".tar.gz ${BACKUP}
+    # remove tmp file
+    rm -rf /"${BACKUP}"
+done
+rm -rf /tmp/backup/

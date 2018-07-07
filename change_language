@@ -1,0 +1,22 @@
+#!/bin/bash
+# MCE_LEMP change language
+# Version: 1.0
+# Author: mbrother
+# Change log:
+
+source /var/mce/script/variable_common
+source ${BASH_DIR}/lang
+[[ -f /var/mce/custom/lang ]] && source /var/mce/custom/lang
+
+LANG_NOW=`head ${BASH_DIR}/lang | grep -w Language: | cut -d" " -f3`
+cd ${BASH_DIR}
+rm -f lang
+if [ "${LANG_NOW}" == "vi" ]
+then
+    ln -s lang_en lang
+    echo -e "${GREEN}Language is switched to English${REMOVE}"
+else
+    ln -s lang_vi lang
+    echo -e "${GREEN}Ngôn ngữ đã được chuyển thành Tiếng Việt${REMOVE}"
+fi
+exit

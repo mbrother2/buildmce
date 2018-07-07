@@ -1,0 +1,59 @@
+#!/bin/bash
+# MCE_LEMP advanced option
+# Version: 1.0
+# Author: mbrother
+# Change log:
+
+# Print space
+printf_s(){
+    if [ $1 -eq 0 ]
+    then
+        echo ""
+    else
+        printf '%0.s ' $(seq 1 $1)
+    fi
+}
+
+source /var/mce/script/variable_common
+source ${BASH_DIR}/lang
+[[ -f /var/mce/custom/lang ]] && source /var/mce/custom/lang
+
+L_LANG_CHECK_SERVICE=$(expr 22 - ${#LANG_CHECK_SERVICE})
+L_LANG_UPDATE_SERVICE=$(expr 22 - ${#LANG_UPDATE_SERVICE})
+L_LANG_CREATE_SWAP=$(expr 22 - ${#LANG_CREATE_SWAP})
+L_LANG_MORE_DATABASE=$(expr 22 - ${#LANG_MORE_DATABASE})
+L_LANG_ADVANCED_OPTION1=$(expr 22 - ${#LANG_ADVANCED_OPTION1})
+
+CHOICE=1
+while [ ${CHOICE} != "X" ]
+do
+    echo " ┌─────────────────────────────────────────────┐"
+    echo " │                  MCE - LEMP                 │"
+    echo " └─────────────────────────────────────────────┘"
+    echo " 1. ${LANG_CHECK_SERVICE} `printf_s ${L_LANG_CHECK_SERVICE}` a. ${LANG_CHANGE_LANGUAGE}"
+    echo " 2. ${LANG_UPDATE_SERVICE} `printf_s ${L_LANG_UPDATE_SERVICE}` b. ${LANG_CHANGE_PASSWORD}"
+    echo " 3. ${LANG_CREATE_SWAP} `printf_s ${L_LANG_CREATE_SWAP}` c. ${LANG_CHANGE_PHP_VERSION}"
+    echo " 4. ${LANG_MORE_DATABASE} `printf_s ${L_LANG_MORE_DATABASE}` d. ${LANG_CHANGE_DOMAIN}"
+    echo " ----------------------------------------------- "
+    echo " X: ${LANG_ADVANCED_OPTION1} `printf_s ${L_LANG_ADVANCED_OPTION1}` M: ${LANG_RETURN_MCE}"
+    read -p " ${LANG_ADVANCED_OPTION2} " CHOICE
+    if [ -z "${CHOICE}" ]
+    then
+        CHOICE=1
+        echo -e "${RED}${LANG_ADVANCED_OPTION3}${REMOVE}"
+        continue
+    fi
+    case ${CHOICE} in
+        1) ${BASH_DIR}/check_service;;
+        2) ${BASH_DIR}/update_service; CHOICE="X"; ${BASH_DIR}/advanced_option;;
+        3) ${BASH_DIR}/create_swap;;
+        4) ${BASH_DIR}/create_database;;
+        a) ${BASH_DIR}/change_language; CHOICE="X"; ${BASH_DIR}/advanced_option;;
+        b) ${BASH_DIR}/change_password;;
+        c) ${BASH_DIR}/change_php_version;;
+        d) ${BASH_DIR}/change_domain;;
+        M) ${BASH_DIR}/mce; CHOICE="X";;
+        X) echo -e " ${GREEN}${LANG_ADVANCED_OPTION4}${REMOVE}";;
+        *) echo -e "${RED}${LANG_ADVANCED_OPTION5} '${CHOICE}'. ${LANG_ADVANCED_OPTION3}${REMOVE}";;
+    esac
+done

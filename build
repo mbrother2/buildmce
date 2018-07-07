@@ -1,0 +1,1239 @@
+#!/bin/bash
+# Auto Install LAMP or LEMP on CentOS 6,7
+# Version: 1.0
+# Author: mbrother
+# Change log:
+
+# Set variables
+GREEN='\e[92m'
+RED='\e[31m'
+REMOVE='\e[0m'
+OS_VER=`rpm -E %centos`
+OS_ARCH=`uname -m`
+IPADDRESS=`ip route get 1 | awk '{print $NF;exit}'`
+DIR=`pwd`
+BASH_DIR="/var/mce/script"
+OPTION=${1}
+CPANEL="/usr/local/cpanel/cpanel"
+DIRECTADMIN="/usr/local/directadmin/custombuild/build"
+PLESK="/usr/local/psa/version"
+
+# Multi languages
+function multi_lang(){
+    if [ ${CHOOSE_LANG} -eq 1 ]
+    then
+        LANG_YES_NO=" You type wrong. Please type ${GREEN}Yes${REMOVE} with caption Y!"
+
+        LANG_CHECK_CONTROL_PANEL1="Your server has installed Control Panel (ex cPanel, DirectAdmin, Plesk) before!"
+        LANG_CHECK_CONTROL_PANEL2="Please use clean server to install mce. Good bye!"
+
+        LANG_CHECK_OPTIONS1="${GREEN} Please use:${REMOVE}"
+        LANG_CHECK_OPTIONS2="sh ${0} [all] [php] [mysql] [ftp] [httpd] [nginx] [--help]"
+        LANG_CHECK_OPTIONS3="sh ${0} all     : Build all services which config on options.conf"
+        LANG_CHECK_OPTIONS4="sh ${0} php     : Build PHP Only"
+        LANG_CHECK_OPTIONS5="sh ${0} mysql   : Build MySQL Only"
+        LANG_CHECK_OPTIONS6="sh ${0} ftp     : Build ftp Only"
+        LANG_CHECK_OPTIONS7="sh ${0} httpd   : Build Apache Only"
+        LANG_CHECK_OPTIONS8="sh ${0} nginx   : Build nginx Only"
+        LANG_CHECK_OPTIONS9="sh ${0} csf     : Build csf Only"
+        LANG_CHECK_OPTIONS10="sh ${0} --help : Show options avaiable"
+        LANG_CHECK_OPTIONS11=" ${0}: invalid option '${OPTION}'\n Try 'sh ${0} --help' for more information."
+
+        LANG_CHECK_INFO1="File ${GREEN}options.conf${REMOVE} do not exist! Downloading..."
+        LANG_CHECK_INFO2="Latest"
+        LANG_CHECK_INFO3=" NOT support Web server"
+        LANG_CHECK_INFO4=" Only support Web server ${GREEN}httpd${REMOVE}, ${GREEN}nginx${REMOVE}! Please check Webserver Settings in options.conf"
+        LANG_CHECK_INFO5=" NOT support PHP option"
+        LANG_CHECK_INFO6=" Only support PHP option: ${GREEN}yes${REMOVE}, ${GREEN}no${REMOVE}, ${GREEN}all${REMOVE}! Please check PHP Settings in options.conf"
+        LANG_CHECK_INFO7=" NOT support PHP"
+        LANG_CHECK_INFO8=" Only support PHP ${GREEN}5.4${REMOVE}, ${GREEN}5.5${REMOVE}, ${GREEN}5.6${REMOVE}, ${GREEN}7.0${REMOVE}, ${GREEN}7.1${REMOVE}, ${GREEN}7.2${REMOVE}! Please check PHP Settings in options.conf"
+        LANG_CHECK_INFO9="All_versions"
+        LANG_CHECK_INFO10=" Now we only support mariadb! Please config ${GREEN}mysql_inst=mariadb${REMOVE} in options.conf and try again."
+        LANG_CHECK_INFO11=" NOT support SQL"
+        LANG_CHECK_INFO12=" Only support Mariadb ${GREEN}10.0${REMOVE}, ${GREEN}10.1${REMOVE}, ${GREEN}10.2${REMOVE}! Please check SQL Settings in options.conf"
+        LANG_CHECK_INFO13="not exist. Change time zone to default:"
+        LANG_CHECK_INFO14=" You can find your time zone here: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List"
+
+        LANG_SHOW_INFO_INSTALL1=" Your server will be installed following serivces:"
+        LANG_SHOW_INFO_INSTALL2=" PHP: All_versions"
+        LANG_SHOW_INFO_INSTALL3=" Lastest"
+        LANG_SHOW_INFO_INSTALL4=" If you want to choose other version (PHP, Mysql...) please use \"Ctrl + C\" and edit file options.conf"
+        LANG_SHOW_INFO_INSTALL5=" Do you agree with above options? If yes, please type ${GREEN}Yes${REMOVE} with caption Y, then press ${GREEN}Enter${REMOVE}."
+        LANG_SHOW_INFO_INSTALL6=" Your choice: "
+
+        LANG_PRE_INSTALL=" ${GREEN}Checking DNS and disable SELINUX...${REMOVE}"
+
+        LANG_SYNC_TIME="${GREEN} Syncing time...${REMOVE}"
+
+        LANG_START_TIME="${GREEN} Let's go...${REMOVE}"
+
+                LANG_UPDATE_SYS=" ${GREEN}Updating system...${REMOVE}"
+
+        LANG_INSTALL_PHP=" ${GREEN}Installing php...${REMOVE}"
+
+        LANG_INSTALL_WEB=" ${GREEN}Installing web server...${REMOVE}"
+
+        LANG_INSTALL_MARIADB1=" ${GREEN}Installing mysql...${REMOVE}"
+        LANG_INSTALL_MARIADB2=" Can not connect to MariaDB server! We will NOT install MySQL."
+
+        LANG_INSTALL_PHPMYADMIN1=" ${GREEN}Installing phpmyadmin...${REMOVE}"
+        LANG_INSTALL_PHPMYADMIN2="Do not exist directory"
+        LANG_INSTALL_PHPMYADMIN3="phpMyadmin have not installed!"
+
+        LANG_INSTALL_FTP=" ${GREEN}Installing ftp...${REMOVE}"
+
+        LANG_INSTALL_CSF=" ${GREEN}Installing csf...${REMOVE}"
+
+        LANG_CONFIG_PHP=" ${GREEN}Configing php...${REMOVE}"
+
+        LANG_CONFIG_NGINX=" ${GREEN}Configing nginx...${REMOVE}"
+
+        LANG_CONFIG_PHP_FPM=" ${GREEN}Configing php-fpm...${REMOVE}"
+
+        LANG_CONFIG_MYSQL=" ${GREEN}Configing mysql...${REMOVE}"
+
+        LANG_CONFIG_PHPMYADMIN=" ${GREEN}Configing phpmyadmin...${REMOVE}"
+
+        LANG_AUTO_CONFIG1="You do not use custom config!"
+        LANG_AUTO_CONFIG2="You do not install PHP, so can not config!"
+        LANG_AUTO_CONFIG3="You do not install MySQL, so can not config!"
+        LANG_AUTO_CONFIG4="You do not install phpMyAdmin, so can not config!"
+        LANG_AUTO_CONFIG5="You do not install web server, so can not config!"
+
+        LANG_RESTART_SERVICES=" Restart services..."
+
+        LANG_START_ON_BOOT=" Config service run on boot..."
+
+        LANG_CHECK_EXIST1="${GREEN}Yes${REMOVE}"
+        LANG_CHECK_EXIST2="${RED}No ${REMOVE}"
+
+        LANG_END_TIME1=" Begin time       : "
+        LANG_END_TIME2=" End time         : "
+        LANG_END_TIME3=" Installation time: "
+
+        LANG_CHECK_SERVICES1=" Ensure services are installed and running:"
+        LANG_CHECK_SERVICES2=" Service   Installed   Running"
+
+        LANG_SHOW_INFO1=" Setup successfully!"
+        LANG_SHOW_INFO2=" Please remember run command mysql_secure_installation to set root password of MySQL and secure MySQL!"
+        LANG_SHOW_INFO3=" Root of mysql is stored in: /root/.my.cnf"
+        LANG_SHOW_INFO4=" Please use these informations to login to phpMyadmin:"
+        LANG_SHOW_INFO5=" user    : root"
+        LANG_SHOW_INFO6=" password:"
+        LANG_SHOW_INFO7=" Good bye!"
+        LANG_SHOW_INFO8=" ${GREEN}Please reboot server before use!${REMOVE}"
+
+        LANG_DOWNLOAD_MCE1="If you want use ${GREEN}'mce'${REMOVE} to auto create user, vhost, ssl... please type ${GREEN}Yes${REMOVE} with caption Y."
+        LANG_DOWNLOAD_MCE2="Your choice: "
+        LANG_DOWNLOAD_MCE3=" Downloading mce..."
+        LANG_DOWNLOAD_MCE4="Done! Please type '${GREEN}mce${REMOVE}' to start create your amazing website!"
+        LANG_DOWNLOAD_MCE5="${RED}SYSTEM WILL REBOOT IN 5s!${REMOVE}"
+        LANG_DOWNLOAD_MCE6="If you DO NOT want to REBOOT your server. Please use {GREEN}'Ctrl + C'${REMOVE} to exit!"
+        LANG_DOWNLOAD_MCE7="Please choose Yes or No"
+    elif [ ${CHOOSE_LANG} -eq 2 ]
+    then
+        LANG_YES_NO=" Bạn gõ sai. Vui lòng gõ từ ${GREEN}Yes${REMOVE} với chữ cái ${GREEN}Y${REMOVE} viết hoa!"
+
+        LANG_CHECK_CONTROL_PANEL1="Máy chủ của bạn đã được cài đặt công cụ quản lý trước đây (ví dụ cPanel, DirectAdmin, Plesk)!"
+        LANG_CHECK_CONTROL_PANEL2="Vui lòng sử dụng máy chủ 'sạch' chỉ cài đặt hệ điều hành CentOS để tiếp tục cài đặt mce."
+
+        LANG_CHECK_OPTIONS1="${GREEN} Vui lòng sử dụng theo cấu trúc sau:${REMOVE}"
+        LANG_CHECK_OPTIONS2="sh ${0} [all] [php] [mysql] [ftp] [httpd] [nginx] [--help]"
+        LANG_CHECK_OPTIONS3="sh ${0} all     : Cài đặt tất cả các dịch vụ được cấu hình trong file options.conf"
+        LANG_CHECK_OPTIONS4="sh ${0} php     : Chỉ cài đặt PHP"
+        LANG_CHECK_OPTIONS5="sh ${0} mysql   : Chỉ cài đặt MySQL"
+        LANG_CHECK_OPTIONS6="sh ${0} ftp     : Chỉ cài đặt ftp"
+        LANG_CHECK_OPTIONS7="sh ${0} httpd   : Chỉ cài đặt Apache"
+        LANG_CHECK_OPTIONS8="sh ${0} nginx   : Chỉ cài đặt nginx"
+        LANG_CHECK_OPTIONS9="sh ${0} csf     : Chỉ cài đặt csf"
+        LANG_CHECK_OPTIONS10="sh ${0} --help : Hiển thị các tùy chọn"
+        LANG_CHECK_OPTIONS11=" ${0}: Tùy chọn '${OPTION}' không hợp lệ. \n Vui lòng gõ 'sh ${0} --help' để xem các tùy chọn."
+
+        LANG_CHECK_INFO1="File ${GREEN}options.conf${REMOVE} không tồn tại! Đang tải..."
+        LANG_CHECK_INFO2="Mới_nhất"
+        LANG_CHECK_INFO3=" Không hỗ trợ Webserver"
+        LANG_CHECK_INFO4=" Chỉ hỗ trợ Webserver ${GREEN}httpd${REMOVE}, ${GREEN}nginx${REMOVE}! Vui lòng kiểm tra cài đặt Webserver trong file options.conf"
+        LANG_CHECK_INFO5=" Không hỗ trợ tùy chọn"
+        LANG_CHECK_INFO6=" Chỉ hỗ trợ các tùy chọn: ${GREEN}yes${REMOVE}, ${GREEN}no${REMOVE}, ${GREEN}all${REMOVE}! Vui lòng kiểm tra cài đặt PHP trong file options.conf"
+        LANG_CHECK_INFO7=" Không hỗ trợ PHP"
+        LANG_CHECK_INFO8=" Chỉ hỗ trợ các phiên bản PHP: ${GREEN}5.4${REMOVE}, ${GREEN}5.5${REMOVE}, ${GREEN}5.6${REMOVE}, ${GREEN}7.0${REMOVE}, ${GREEN}7.1${REMOVE}, ${GREEN}7.2${REMOVE}! Vui lòng kiểm tra cài đặt PHP trong file options.conf"
+        LANG_CHECK_INFO9="Tất_cả_các_phiên_bản"
+        LANG_CHECK_INFO10=" Hiện tại chúng tôi chỉ hỗ trợ cài đặt mariadb. Vui lòng cấu hình ${GREEN}mysql_inst=mariadb${REMOVE} trong file options.conf và thử lại."
+        LANG_CHECK_INFO11=" Không hỗ trợ SQL"
+        LANG_CHECK_INFO12=" Chỉ hỗ trợ các phiên bản Mariadb ${GREEN}10.0${REMOVE}, ${GREEN}10.1${REMOVE}, ${GREEN}10.2${REMOVE}! Vui lòng kiểm tra cấu hình SQL trong file options.conf"
+        LANG_CHECK_INFO13="không tồn tại. Thay đổi time zone về mặc định:"
+        LANG_CHECK_INFO14=" Bạn có thể tìm time zone của bạn tại đây: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List"
+
+        LANG_SHOW_INFO_INSTALL1=" Máy chủ của bạn sẽ cài đặt các dịch vụ sau:"
+        LANG_SHOW_INFO_INSTALL2=" PHP: Tất_cả_các_phiên_bản"
+        LANG_SHOW_INFO_INSTALL3=" Mới_nhất"
+        LANG_SHOW_INFO_INSTALL4=" Nếu bạn muốn cài đặt phiên bản khác cho PHP, Mysql... vui lòng sử dụng tổ hợp phím \"Ctrl + C\", sau đó chỉnh sửa trong file options.conf"
+        LANG_SHOW_INFO_INSTALL5=" Bạn có chắc chắn muốn cài đặt các dịch vụ trên? Nếu đúng vui lòng gõ từ ${GREEN}Yes${REMOVE} với chữ cái Y viết hoa, sau đó gõ ${GREEN}Enter${REMOVE}."
+        LANG_SHOW_INFO_INSTALL6=" Lựa chọn của bạn: "
+
+        LANG_PRE_INSTALL="${GREEN} Đang kiểm tra DNS và tắt SELINUX...${REMOVE}"
+
+        LANG_SYNC_TIME="${GREEN} Đang đồng bộ thời gian...${REMOVE}"
+
+        LANG_START_TIME="${GREEN} Bắt đầu cài đặt...${REMOVE}"
+
+                LANG_UPDATE_SYS="${GREEN} Đang cập nhật hệ thống...${REMOVE}"
+
+        LANG_INSTALL_PHP="${GREEN} Đang cài đặt php...${REMOVE}"
+
+        LANG_INSTALL_WEB="${GREEN} Đang cài đặt web server...${REMOVE}"
+
+        LANG_INSTALL_MARIADB1="${GREEN} Đang cài đặt mysql...${REMOVE}"
+        LANG_INSTALL_MARIADB2=" Không thể kết nối tới máy chủ của MariaDB! Chúng ta sẽ không cài đặt MySQL."
+
+        LANG_INSTALL_PHPMYADMIN1="${GREEN} Đang cài đặt phpmyadmin...${REMOVE}"
+        LANG_INSTALL_PHPMYADMIN2="Không tồn tại thư mục"
+        LANG_INSTALL_PHPMYADMIN3="Vì vậy không thể cài đặt phpMyAdmin!"
+
+        LANG_INSTALL_FTP="${GREEN} Đang cài đặt ftp...${REMOVE}"
+
+        LANG_INSTALL_CSF="${GREEN} Đang cài đặt csf...${REMOVE}"
+
+        LANG_CONFIG_PHP="${GREEN} Đang cấu hình php...${REMOVE}"
+
+        LANG_CONFIG_NGINX="${GREEN} Đang cấu hình nginx...${REMOVE}"
+
+        LANG_CONFIG_PHP_FPM="${GREEN} Đang cấu hình php-fpm...${REMOVE}"
+
+        LANG_CONFIG_MYSQL="${GREEN} Đang cấu hình mysql...${REMOVE}"
+
+        LANG_CONFIG_PHPMYADMIN="${GREEN} Đang cấu hình phpmyadmin...${REMOVE}"
+
+        LANG_AUTO_CONFIG1="Bạn không sử dụng công cụ tự động cấu hình!"
+        LANG_AUTO_CONFIG2="Bạn không cài đặt PHP, vì vậy không thể cấu hình PHP!"
+        LANG_AUTO_CONFIG3="Bạn không cài đặt MySQL, vì vậy không thể cấu hình MySQL!"
+        LANG_AUTO_CONFIG4="Bạn không cài đặt phpMyAdmin, vì vậy không thể cấu hình phpMyAdmin"
+        LANG_AUTO_CONFIG5="Bạn không cài đặt web server , vì vậy không thể cấu hình web server"
+
+        LANG_RESTART_SERVICES=" Khởi động lại các dịch vụ..."
+
+        LANG_START_ON_BOOT=" Cài đặt dịch vụ chạy khi khởi động máy chủ..."
+
+        LANG_CHECK_EXIST1="${GREEN}Có   ${REMOVE}"
+        LANG_CHECK_EXIST2="${RED}Không${REMOVE}"
+
+        LANG_END_TIME1=" Thời gian bắt đầu  : "
+        LANG_END_TIME2=" Thời gian kết thúc : "
+        LANG_END_TIME3=" Thời gian cài đặt  : "
+
+        LANG_CHECK_SERVICES1=" Kiểm tra dịch vụ đã được cài đặt và đang chạy:"
+        LANG_CHECK_SERVICES2=" Dịch vụ   Đã cài đặt   Đang chạy"
+
+        LANG_SHOW_INFO1=" Cài đặt thành công!"
+        LANG_SHOW_INFO2=" Vui lòng chạy câu lệnh mysql_secure_installation để thiết lập mật khẩu root cho MySQl và bảo mật MySQL!"
+        LANG_SHOW_INFO3=" Mật khẩu root của MySQL được lưu tại: /root/.my.cnf"
+        LANG_SHOW_INFO4=" Vui lòng sử dụng thông tin sau để truy cập vào phpMyadmin:"
+        LANG_SHOW_INFO5=" Tài khoản: root"
+        LANG_SHOW_INFO6=" Mật khẩu :"
+        LANG_SHOW_INFO7=" Tạm biệt!"
+        LANG_SHOW_INFO8="${GREEN} Vui lòng khởi động lại máy chủ của bạn trước khi sử dụng!${REMOVE}"
+
+        LANG_DOWNLOAD_MCE1="Nếu bạn muốn sử dụng ${GREEN}'mce'${REMOVE} để tự động cài đặt website, hosting, ssl...vui lòng gõ ${GREEN}Yes${REMOVE} với chữ Y viết hoa."
+        LANG_DOWNLOAD_MCE2="Lựa chọn của bạn: "
+        LANG_DOWNLOAD_MCE3=" Đang tải mce..."
+        LANG_DOWNLOAD_MCE4="Thành công! Vui lòng gõ '${GREEN}mce${REMOVE}' để bắt đầu cài đặt các website tuyệt vời của bạn!"
+        LANG_DOWNLOAD_MCE5="${RED}HỆ THỐNG SẼ KHỞI ĐỘNG LẠI SAU 5s!${REMOVE}"
+        LANG_DOWNLOAD_MCE6="Nếu bạn KHÔNG MUỐN KHỞI ĐỘNG LẠI máy chủ. Vui lòng sử dụng tổ hợp phím ${GREEN}'Ctrl + C'${REMOVE}!"
+        LANG_DOWNLOAD_MCE7="Vui lòng chọn Yes hoặc No"
+    fi
+}
+
+# Check if cPanel, DirectAdmin, Plesk has installed before
+check_control_panel(){
+    if [[ -f ${CPANEL} ]] || [[ -f ${DIRECTADMIN} ]] || [[ -f ${PLESK} ]]
+    then
+        echo -e "${RED}${LANG_CHECK_CONTROL_PANEL1}${REMOVE}"
+        echo "${LANG_CHECK_CONTROL_PANEL2}"
+        exit
+    fi
+}
+
+# Check option in a list
+function check_list(){
+    false
+    VALUE=$1
+    List=($2)
+    for i in ${List[*]}
+    do
+        [[ "${i}" == "${VALUE}" ]] && return 0
+    done
+}
+
+function yes_no(){
+    if [ "${1}" != "Yes" ]
+    then
+        echo -e "${LANG_YES_NO}"
+    fi
+}
+
+function check_options(){
+    if [ "${OPTION}" == "--help" ]
+    then
+        echo -e "${LANG_CHECK_OPTIONS1}"
+        echo "${LANG_CHECK_OPTIONS2}"
+        echo ""
+        echo "${LANG_CHECK_OPTIONS3}"
+        echo "${LANG_CHECK_OPTIONS4}"
+        echo "${LANG_CHECK_OPTIONS5}"
+        echo "${LANG_CHECK_OPTIONS6}"
+        echo "${LANG_CHECK_OPTIONS7}"
+        echo "${LANG_CHECK_OPTIONS8}"
+        echo "${LANG_CHECK_OPTIONS9}"
+        echo "${LANG_CHECK_OPTIONS10}"
+        exit
+    fi
+    List_options=(php mysql ftp httpd nginx csf all --help)
+    check_list "${OPTION}" "${List_options[*]}"
+    if [ $? -eq 1 ]
+    then
+        echo -e "${LANG_CHECK_OPTIONS11}"
+        exit
+    fi
+}
+
+# Check Information
+function check_info(){
+    if [ ! -f ${DIR}/options.conf ]
+    then
+        echo -e "${LANG_CHECK_INFO1}"
+        sleep 2
+        curl -o ${DIR}/options.conf https://files.buildmce.com/options.conf
+    fi
+    PHP_INST=`      cat ${DIR}/options.conf | grep "php_inst="       | cut -d"=" -f2`
+    PHP_VER=`       cat ${DIR}/options.conf | grep "php_main="       | cut -d"=" -f2`
+    MYSQL_VER=`     cat ${DIR}/options.conf | grep "mariadb="        | cut -d"=" -f2`
+    MYSQL_INST=`    cat ${DIR}/options.conf | grep "mysql_inst="     | cut -d"=" -f2`
+    WEB=`           cat ${DIR}/options.conf | grep "webserver="      | cut -d"=" -f2`
+    PHPMYADMIN_VER=`cat ${DIR}/options.conf | grep "phpmyadmin_ver=" | cut -d"=" -f2`
+    FTP_INST=`      cat ${DIR}/options.conf | grep "ftp_inst="       | cut -d"=" -f2`
+    AUTO_CONFIG=`   cat ${DIR}/options.conf | grep "auto_config="    | cut -d"=" -f2`
+    SYNC_TIME=`     cat ${DIR}/options.conf | grep "sync_time="      | cut -d"=" -f2`
+    TIME_ZONE=`     cat ${DIR}/options.conf | grep "time_zone="      | cut -d"=" -f2`
+    UPDATE_SYS=`    cat ${DIR}/options.conf | grep "update_sys="     | cut -d"=" -f2`
+    CSF_INST=`      cat ${DIR}/options.conf | grep "csf_sys="        | cut -d"=" -f2`
+    OPTION_VESION="${LANG_CHECK_INFO2}"
+
+    if [[ "${OPTION}" == "web" ]] || [[ "${OPTION}" == "all" ]]
+    then
+        List_WEB=(httpd nginx no)
+        check_list "${WEB}" "${List_WEB[*]}"
+        if [ $? -eq 1 ]
+        then
+            echo -e "${LANG_CHECK_INFO3} \"${RED}${WEB}${REMOVE}\""
+            echo -e "${LANG_CHECK_INFO4}"
+            exit
+        fi
+    fi
+
+    if [[ "${OPTION}" == "php" ]] || [[ "${OPTION}" == "all" ]]
+    then
+        List_PHP_INST=(yes no all)
+        check_list "${PHP_INST}" "${List_PHP_INST[*]}"
+        if [ $? -eq 1 ]
+        then
+            echo -e "${LANG_CHECK_INFO5} \"${RED}${PHP_INST}${REMOVE}\""
+            echo -e "${LANG_CHECK_INFO6}"
+            exit
+        fi
+        if [ "${PHP_INST}" != "no" ]
+        then
+            List_PHP=(5.4 5.5 5.6 7.0 7.1 7.2)
+            check_list "${PHP_VER}" "${List_PHP[*]}"
+            if [ $? -eq 1 ]
+            then
+                echo -e "${LANG_CHECK_INFO7} \"${RED}${PHP_VER}${REMOVE}\""
+                echo -e "${LANG_CHECK_INFO8}"
+                exit
+            fi
+        fi
+        if [ "${PHP_INST}" == "all" ]
+        then
+            OPTION_VESION="${LANG_CHECK_INFO9}"
+        else
+            OPTION_VESION="${PHP_VER}"
+        fi
+    fi
+
+    if [[ "${OPTION}" == "mysql" ]] || [[ "${OPTION}" == "all" ]]
+    then
+        List_MYSQL_INST=(mariadb no)
+        check_list "${MYSQL_INST}" "${List_MYSQL_INST[*]}"
+        if [ $? -eq 1 ]
+        then
+            echo -e "${LANG_CHECK_INFO10}"
+            exit
+        fi
+        if [ "${MYSQL_INST}" != "no" ]
+        then
+            List_SQL=(10.0 10.1 10.2)
+            check_list "${MYSQL_VER}" "${List_SQL[*]}"
+            if [ $? -eq 1 ]
+            then
+                echo -e "${LANG_CHECK_INFO11} \"${RED}${MYSQL_VER}${REMOVE}\""
+                echo -e "${LANG_CHECK_INFO12}"
+                exit
+            fi
+        fi
+        OPTION_VESION="${MYSQL_VER}"
+    fi
+
+    if [ ! -f /usr/share/zoneinfo/${TIME_ZONE} ]
+    then
+        if [ ${CHOOSE_LANG} -eq 1 ]
+        then
+            TIME_ZONE_DEFAULT="America/New_York"
+        elif [ ${CHOOSE_LANG} -eq 2 ]
+        then
+            TIME_ZONE_DEFAULT="Asia/Ho_Chi_Minh"
+        fi
+        echo -e "Time zone \"${RED}${TIME_ZONE}${REMOVE}\" ${LANG_CHECK_INFO13} ${GREEN}${TIME_ZONE_DEFAULT}${REMOVE}"
+        TIME_ZONE=${TIME_ZONE_DEFAULT}
+        echo "${LANG_CHECK_INFO14}"
+    fi
+}
+
+# Show information will be install
+function show_info_install(){
+    echo "${LANG_SHOW_INFO_INSTALL1}"
+    if [ "${OPTION}" != "all" ]
+    then
+        OPTION_UPPER=`echo ${OPTION} | tr '[:lower:]' '[:upper:]'`
+        echo " ${OPTION_UPPER}: ${OPTION_VESION}"
+    else
+        if [ "${PHP_INST}" = "all" ]
+        then
+            echo "${LANG_SHOW_INFO_INSTALL2}" > /tmp/show_info_install.txt
+        elif [ "${PHP_INST}" != "no" ]
+        then
+            echo " PHP: ${PHP_VER}" > /tmp/show_info_install.txt
+        fi
+        [[ "${MYSQL_INST}" != "no" ]] && echo " ${MYSQL_INST}: ${MYSQL_VER}" >> /tmp/show_info_install.txt
+        [[ "${WEB}" != "no" ]] && echo " ${WEB}: ${LANG_SHOW_INFO_INSTALL3}" >> /tmp/show_info_install.txt
+        [[ "${PHPMYADMIN_VER}" != "no" ]] && echo " phpMyAdmin: ${PHPMYADMIN_VER}" >> /tmp/show_info_install.txt
+        [[ "${FTP_INST}" != "no" ]] && echo "${FTP_INST}: ${LANG_SHOW_INFO_INSTALL3}" >> /tmp/show_info_install.txt
+        [[ "${CSF_INST}" != "no" ]] && echo " csf: ${LANG_SHOW_INFO_INSTALL3}" >> /tmp/show_info_install.txt
+        echo " Auto_Config: ${AUTO_CONFIG}" >> /tmp/show_info_install.txt
+        echo " Sync_time: ${SYNC_TIME}" >> /tmp/show_info_install.txt
+        [[ "${SYNC_TIME}" != "no" ]] && echo " Time_zone: ${TIME_ZONE}" >> /tmp/show_info_install.txt
+        echo " Update_system: ${UPDATE_SYS}" >> /tmp/show_info_install.txt
+        cat /tmp/show_info_install.txt |  column -t
+        rm -f /tmp/show_info_install.txt
+    fi
+    echo ""
+
+    echo "${LANG_SHOW_INFO_INSTALL4}"
+    echo -e "${LANG_SHOW_INFO_INSTALL5}"
+    read -p "${LANG_SHOW_INFO_INSTALL6}" CHOICE
+    while [ "${CHOICE}" != "Yes" ]
+    do
+        yes_no ${CHOICE}
+        read -p "${LANG_SHOW_INFO_INSTALL6}" CHOICE
+    done
+}
+
+# Pre-install
+function pre_install(){
+    # Check DNS
+    echo ""
+    echo -e "${LANG_PRE_INSTALL}"
+    sleep 2
+    sed -i 's/nameserver/#nameserver/g' /etc/resolv.conf
+    echo "nameserver 8.8.8.8" >> /etc/resolv.conf
+    echo "nameserver 8.8.4.4" >> /etc/resolv.conf
+    # Off SELINUX
+    if [ -f /bin/systemctl ]
+    then
+        systemctl stop firewalld
+        systemctl disable firewalld
+    else
+        service iptables stop
+        chkconfig iptables off
+    fi
+
+    mv /etc/selinux/config /etc/selinux/config.orig
+    cat /etc/selinux/config.orig | sed 's/SELINUX/#SELINUX/g' > /etc/selinux/config
+    echo "SELINUX=disabled" >> /etc/selinux/config
+    echo "SELINUXTYPE=targeted" >> /etc/selinux/config
+
+    ##Install wget unzip
+    yum -y install wget unzip
+}
+
+# Let's go
+function sync_time(){
+    ##Sync Time
+    yum -y install ntp
+    rm -f /etc/localtime
+    ln -s /usr/share/zoneinfo/${TIME_ZONE} /etc/localtime
+    if [ -f /bin/systemctl ]
+    then
+        systemctl restart ntpd
+        systemctl enable ntpd
+    else
+        service ntpd restart
+        chkconfig ntpd on
+    fi
+    echo ""
+    echo -e "${LANG_SYNC_TIME}"
+    sleep 15
+}
+
+function start_time(){
+    RIGHT_NOW=`date +"%T %d-%m-%Y"`
+    BEGIN_TIME=`date +%s`
+    echo -e "${RED}[ ${RIGHT_NOW} ]${REMOVE}${LANG_START_TIME}"
+sleep 2
+}
+
+
+# Update system
+function update_sys(){
+    ##Update system
+    if [ ${UPDATE_SYS} == "yes" ]
+    then
+        echo ""
+        echo -e "${LANG_UPDATE_SYS}"
+        sleep 2
+        yum -y update
+    fi
+}
+
+
+#Install Services
+##Install PHP
+function install_php(){
+    echo ""
+    echo -e "${LANG_INSTALL_PHP}"
+    sleep 2
+    PHP_VER1=`echo ${PHP_VER} | sed 's/\.//'`
+    yum -y install epel-release centos-release-scl-rh
+    yum -y --enablerepo=centos-sclo-rh-testing install devtoolset-6-gcc-c++
+    rpm -Uvh http://rpms.remirepo.net/enterprise/remi-release-${OS_VER}.rpm
+    yum -y --enablerepo=remi-php${PHP_VER1} install php php-fpm php-devel php-curl php-exif php-fileinfo php-gd php-hash php-intl php-imap php-json php-mbstring php-mcrypt php-mysqlnd php-soap php-xml php-simplexml php-xmlrpc php-xsl php-zip php-zlib php-session php-filter
+
+    if [ "${PHP_INST}" == "all" ]
+    then
+        for i in $(echo ${List_PHP[*]} | sed "s/${PHP_VER}//")
+        do
+            PHP_VER2=`echo ${i} | sed 's/\.//'`
+            if [ "${PHP_VER2}" != "${PHP_VER1}" ]
+            then
+                yum -y --enablerepo=remi-php${PHP_VER2} install php${PHP_VER2}-php php${PHP_VER2}-php-fpm php${PHP_VER2}-php-devel php${PHP_VER2}-php-curl php${PHP_VER2}-php-exif php${PHP_VER2}-php-fileinfo php${PHP_VER2}-php-gd php${PHP_VER2}-php-hash php${PHP_VER2}-php-intl php${PHP_VER2}-php-imap php${PHP_VER2}-php-json php${PHP_VER2}-php-mbstring php${PHP_VER2}-php-mcrypt php${PHP_VER2}-php-mysqlnd php${PHP_VER2}-php-soap php${PHP_VER2}-php-xml php${PHP_VER2}-php-simplexml php${PHP_VER2}-php-xmlrpc php${PHP_VER2}-php-xsl php${PHP_VER2}-php-zip php${PHP_VER2}-php-zlib php${PHP_VER2}-php-session php${PHP_VER2}-php-filter
+                if [[ "${PHP_VER2}" == "54" ]] || [[ "${PHP_VER2}" == "55" ]]
+                then
+                    REMI_DIR="/etc/opt/remi"
+                    [ ! -d ${REMI_DIR} ] && mkdir ${REMI_DIR}
+                    ln -s /opt/remi/php${PHP_VER2}/root/etc ${REMI_DIR}/php${PHP_VER2}
+                fi
+            fi
+        done
+    fi
+}
+
+# Install webserver
+function install_web(){
+    echo ""
+    echo -e "${LANG_INSTALL_WEB}"
+    sleep 2
+    if [ "${OPTION}" == "httpd" ]
+    then
+        WEB="httpd"
+    elif [ "${OPTION}" == "nginx" ]
+    then
+        WEB="nginx"
+    fi
+    if [ "${WEB}" == "nginx" ]
+    then
+        cat > "/etc/yum.repos.d/nginx.repo" <<EONGINXREPO
+[nginx]
+name=nginx repo
+baseurl=http://nginx.org/packages/centos/\$releasever/\$basearch/
+gpgcheck=0
+enabled=1
+EONGINXREPO
+    fi
+
+    yum -y install ${WEB}
+}
+
+##Install MariaDB
+function install_mariadb(){
+    echo ""
+    echo -e "${LANG_INSTALL_MARIADB1}"
+    sleep 2
+    # Check yum.mariadb.org
+    HOST="yum.mariadb.org"
+    if ping -c 1 -w 1 ${HOST} > /dev/null
+    then
+        if [ "${OS_ARCH}" == "x86_64" ]
+        then
+            OS_ARCH1="amd64"
+        elif [ "${OS_ARCH}" == "i686" ]
+        then
+            OS_ARCH1="x86"
+        fi
+        cat > "/etc/yum.repos.d/MariaDB.repo" <<EOMARIADBREPO
+[mariadb]
+name = MariaDB
+baseurl = http://yum.mariadb.org/${MYSQL_VER}/centos${OS_VER}-${OS_ARCH1}
+gpgkey=https://yum.mariadb.org/RPM-GPG-KEY-MariaDB
+gpgcheck=1
+EOMARIADBREPO
+
+        yum -y install MariaDB-server MariaDB-client
+    else
+            echo "${LANG_INSTALL_MARIADB2}"
+    fi
+}
+
+##Install phpMyAdmin
+function install_phpmyadmin(){
+    echo ""
+    echo -e "${LANG_INSTALL_PHPMYADMIN1}"
+    sleep 2
+    if [ ${WEB} == "apache" ]
+    then
+        DEFAULT_DIR_WEB="/var/www/html"
+    elif [ ${WEB} == "nginx" ]
+    then
+        DEFAULT_DIR_WEB="/usr/share/nginx/html"
+    fi
+    if [ -d ${DEFAULT_DIR_WEB} ]
+    then
+        [[ "${PHP_VER}" == "5.4" ]] && PHPMYADMIN_VER="4.0.10.20"
+        wget -O ${HOME}/phpmyadmin.tar.gz https://files.phpmyadmin.net/phpMyAdmin/${PHPMYADMIN_VER}/phpMyAdmin-${PHPMYADMIN_VER}-all-languages.tar.gz
+        tar -xf ${HOME}/phpmyadmin.tar.gz
+        rm -f ${HOME}/phpmyadmin.tar.gz
+        mv ${HOME}/phpMyAdmin-${PHPMYADMIN_VER}-all-languages ${HOME}/phpmyadmin
+        mv ${HOME}/phpmyadmin/ ${DEFAULT_DIR_WEB}
+        mv ${DEFAULT_DIR_WEB}/phpmyadmin/config.sample.inc.php ${DEFAULT_DIR_WEB}/phpmyadmin/config.inc.php
+        chown -R root:root ${DEFAULT_DIR_WEB}/phpmyadmin
+    else
+        echo "${LANG_INSTALL_PHPMYADMIN2} ${DEFAULT_DIR_WEB}. ${LANG_INSTALL_PHPMYADMIN3}"
+    fi
+}
+
+##Install FTP
+function install_ftp(){
+    echo ""
+    echo -e "${LANG_INSTALL_FTP}"
+    sleep 2
+    yum -y install epel-release
+    yum -y install proftpd
+}
+
+# Install csf_sys
+function install_csf(){
+    echo ""
+    echo -e "${LANG_INSTALL_CSF}"
+    sleep 2
+    yum -y install perl-libwww-perl perl-LWP-Protocol-https bind-utils
+    curl -o ${DIR}/csf.tgz https://download.configserver.com/csf.tgz
+    tar -xf csf.tgz
+    cd ${DIR}/csf
+    sh install.sh
+    cd ${DIR}
+    rm -rf csf*
+    sed -i 's/TESTING = "1"/TESTING = "0"/; s/443,587/443,465,587/; s/RESTRICT_SYSLOG = "0"/RESTRICT_SYSLOG = "2"/' /etc/csf/csf.conf
+    cat >> "/etc/csf/csf.pignore" <<EOCSF
+exe:/usr/sbin/nginx
+exe:/usr/sbin/php-fpm
+pexe:/usr/libexec/postfix/.*
+pexe:/opt/remi/.*/root/usr/sbin/php-fpm
+EOCSF
+    csf -r
+}
+
+##Install all services & config
+function install_all(){
+    # Start install
+    start_time
+
+    # Update System
+    [[ "${UPDATE_SYS}" == "yes" ]] && update_sys
+
+    # Pre-install
+    pre_install
+
+    # Install services
+    [[ "${PHP_INST}" != "no" ]] && install_php
+    [[ "${WEB}" != "no" ]] && install_web
+    [[ "${MYSQL_INST}" != "no" ]] && install_mariadb
+    [[ "${PHPMYADMIN_VER}" != "no" ]] && install_phpmyadmin
+    [[ "${FTP_INST}" != "no" ]] && install_ftp
+    [[ "${CSF_INST}" != "no" ]] && install_csf
+
+    # Config services
+    auto_config
+    echo ""
+    echo -e "${GREEN}${LANG_RESTART_SERVICES}${REMOVE}"
+    sleep 2
+    restart_services mysql
+    restart_services proftpd
+    restart_services ${WEB}
+    if [ "${WEB}" == "nginx" ]
+    then
+        restart_services php-fpm
+    fi
+
+    echo ""
+    echo -e "${GREEN}${LANG_START_ON_BOOT}${REMOVE}"
+    start_on_boot proftpd
+    start_on_boot ${WEB}
+    if [ "${WEB}" == "nginx" ]
+    then
+        start_on_boot php-fpm
+    fi
+
+        RIGHT_NOW2=`date +"%T %d-%m-%Y"`
+    END_TIME=`date +%s`
+
+    # Sync time
+    [[ "${SYNC_TIME}" == "yes" ]] && sync_time
+
+    end_time
+
+    # Check services installed and running
+    check_services
+
+    # Show info
+    show_info
+
+    # Download mce
+    download_mce
+}
+
+# Config services
+##Config PHP
+function config_php(){
+    echo ""
+    echo -e "${LANG_CONFIG_PHP}"
+    sleep 2
+    mv /etc/php.ini /etc/php.ini.orig
+    cat /etc/php.ini.orig | sed "s/memory_limit = 128M/memory_limit = 256M/; s/upload_max_filesize = 2M/upload_max_filesize = 200M/; s/post_max_size = 8M/post_max_size = 200M/; s/max_execution_time = 30/max_execution_time = 300/; s/max_input_time = 60/max_input_time = 300/; s/; max_input_vars = 1000/max_input_vars = 10000/" > /etc/php.ini
+    if [ "${PHP_INST}" == "all" ]
+    then
+        for i in $(echo ${List_PHP[*]} | sed "s/${PHP_VER}//")
+        do
+            PHP_VER2=`echo ${i} | sed 's/\.//'`
+            mv ${REMI_DIR}/php${PHP_VER2}/php.ini ${REMI_DIR}/php${PHP_VER2}/php.ini.orig
+            cat ${REMI_DIR}/php${PHP_VER2}/php.ini.orig | sed "s/memory_limit = 128M/memory_limit = 256M/; s/upload_max_filesize = 2M/upload_max_filesize = 200M/; s/post_max_size = 8M/post_max_size = 200M/; s/max_execution_time = 30/max_execution_time = 300/; s/max_input_time = 60/max_input_time = 300/; s/; max_input_vars = 1000/max_input_vars = 10000/" > ${REMI_DIR}/php${PHP_VER2}/php.ini
+        done
+    fi
+}
+
+##Config WEB server
+###Config Nginx
+function config_nginx(){
+    echo ""
+    echo -e "${LANG_CONFIG_NGINX}"
+    sleep 2
+        VHOST_DIR="/etc/nginx/conf.d"
+    mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf.orig
+    cat > "/etc/nginx/nginx.conf" <<EONGINXCONF
+worker_processes 1;
+worker_rlimit_nofile 65536;
+pid /var/run/nginx.pid;
+
+events {
+        worker_connections 1024;
+}
+
+http {
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+        access_log /var/log/nginx/access.log;
+        error_log /var/log/nginx/error.log;
+
+
+        sendfile on;
+        tcp_nopush on;
+        tcp_nodelay on;
+        keepalive_timeout 65;
+        types_hash_max_size 2048;
+
+        gzip on;
+        gzip_disable "msie6";
+        gzip_min_length  1100;
+        gzip_buffers  4 32k;
+        gzip_types    text/plain application/x-javascript text/xml text/css;
+
+        open_file_cache          max=10000 inactive=10m;
+        open_file_cache_valid    2m;
+        open_file_cache_min_uses 1;
+        open_file_cache_errors   on;
+
+        ignore_invalid_headers on;
+        client_max_body_size    8m;
+        client_header_timeout  3m;
+        client_body_timeout 3m;
+        send_timeout     3m;
+        connection_pool_size  256;
+        client_header_buffer_size 4k;
+        large_client_header_buffers 4 32k;
+        request_pool_size  4k;
+        output_buffers   4 32k;
+        postpone_output  1460;
+        log_format traffic '\$request_length \$bytes_sent ';
+
+
+        include /etc/nginx/conf.d/*.conf;
+}
+EONGINXCONF
+
+    if [ ! -d ${VHOST_DIR} ]
+    then
+        mkdir ${VHOST_DIR}
+    fi
+
+    if [ -f ${VHOST_DIR}/default.conf ]
+    then
+        mv ${VHOST_DIR}/default.conf ${VHOST_DIR}/default.conf.orig
+    fi
+
+    cat > "${VHOST_DIR}/_default_server.conf" <<EOnginx_vhost_default
+server {
+        listen       80;
+        server_name  localhost;
+
+        location / {
+            root   /usr/share/nginx/html;
+            index  index.php index.html index.htm;
+        }
+
+        location ~ ^/phpmyadmin/(.*\\.php)\$ {
+            root                /usr/share/nginx/html/phpmyadmin/;
+            fastcgi_index       index.php;
+            fastcgi_pass        unix:/var/run/phpmyadmin.sock;
+            include             fastcgi_params;
+            fastcgi_param       SCRIPT_FILENAME /usr/share/nginx/html/phpmyadmin/\$1;
+            fastcgi_param       DOCUMENT_ROOT /usr/share/nginx/html/phpmyadmin;
+        }
+
+
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   /usr/share/nginx/html;
+        }
+}
+EOnginx_vhost_default
+
+
+    echo "0 0 1 * * /var/mce/script/rotate_log" >> /var/spool/cron/root
+}
+
+##Config php-fpm
+function config_php_fpm(){
+    echo ""
+    echo -e "${LANG_CONFIG_PHP_FPM}"
+    sleep 2
+    FPM_DIR="/etc/php-fpm.d"
+    if [ ! -d ${FPM_DIR} ]
+    then
+        mkdir ${FPM_DIR}
+        else
+        mv ${FPM_DIR}/www.conf ${FPM_DIR}/www.conf.orig
+    fi
+    cat > "${FPM_DIR}/www.conf" <<EOconfig_php_fpm
+[nginx]
+user = nginx
+group = nginx
+listen = /var/run/phpmyadmin.sock
+listen.owner = nginx
+listen.group = nginx
+php_admin_value[disable_functions] = passthru,shell_exec,system
+php_admin_flag[allow_url_fopen] = off
+pm = dynamic
+pm.max_children = 25
+pm.start_servers = 5
+pm.min_spare_servers = 2
+pm.max_spare_servers = 10
+chdir = /
+EOconfig_php_fpm
+
+    if [ "${PHP_INST}" == "all" ]
+    then
+        for i in $(echo ${List_PHP[*]} | sed "s/${PHP_VER}//")
+        do
+            PHP_VER2=`echo ${i} | sed 's/\.//'`
+            FPM_DIR="${REMI_DIR}/php${PHP_VER2}/php-fpm.d"
+            if [ ! -d ${FPM_DIR} ]
+            then
+                mkdir ${FPM_DIR}
+                else
+                mv ${FPM_DIR}/www.conf ${FPM_DIR}/www.conf.orig
+            fi
+            cat > "${FPM_DIR}/www.conf" <<EOconfig_php_fpm
+[nginx]
+user = nginx
+group = nginx
+listen = /var/run/phpmyadmin.php${PHP_VER2}.sock
+listen.owner = nginx
+listen.group = nginx
+php_admin_value[disable_functions] = passthru,shell_exec,system
+php_admin_flag[allow_url_fopen] = off
+pm = dynamic
+pm.max_children = 25
+pm.start_servers = 5
+pm.min_spare_servers = 2
+pm.max_spare_servers = 10
+chdir = /
+EOconfig_php_fpm
+        done
+    fi
+}
+
+## Config MySQL
+function config_mysql(){
+    echo ""
+    echo -e "${LANG_CONFIG_MYSQL}"
+    sleep 2
+    CHECK_MARIADB=`mysql -V | grep MariaDB | wc -l`
+    if [ ${CHECK_MARIADB} = 1 ]
+    then
+        MYSQL="mysql"
+    else
+        MYSQL="mysqld"
+    fi
+    service ${MYSQL} restart
+    SQLPASS=`date +%s | sha256sum | base64 | head -c 12`
+    /usr/bin/mysql_secure_installation << EOF
+
+y
+${SQLPASS}
+${SQLPASS}
+y
+y
+y
+y
+EOF
+
+    cat > "/root/.my.cnf" <<EOFMYCNF
+[client]
+user="root"
+password="${SQLPASS}"
+EOFMYCNF
+
+    mv /etc/my.cnf /etc/my.cnf.orig
+    cat > "/etc/my.cnf" <<EOFMYSQLCONF
+[mysqld]
+bind-address = 127.0.0.1
+port    = 3306
+socket  = /var/lib/mysql/mysql.sock
+max_connections         = 300
+max_connect_errors      = 10
+max_allowed_packet      = 16M
+sort_buffer_size        = 1M
+join_buffer_size        = 2M
+thread_cache_size       = 8
+query_cache_size        = 64M
+query_cache_limit       = 4M
+query_cache_type        = 0
+default-storage-engine = INNODB
+thread_stack            = 240K
+tmp_table_size          = 256M
+max_heap_table_size = 256M
+table_open_cache        = 800
+key_buffer_size         = 32M
+myisam_sort_buffer_size = 256M
+myisam_repair_threads   = 1
+innodb_buffer_pool_size         = 512M
+innodb_thread_concurrency       = 16
+innodb_lock_wait_timeout        = 120
+innodb_buffer_pool_instances= 2
+
+[mysqldump]
+quick
+max_allowed_packet = 16M
+
+[mysql]
+no-auto-rehash
+
+[myisamchk]
+key_buffer_size         = 256M
+sort_buffer_size        = 256M
+read_buffer             = 8M
+write_buffer            = 8M
+
+[mysqlhotcopy]
+interactive-timeout
+
+[mysqld_safe]
+open-files-limit        = 8192
+EOFMYSQLCONF
+}
+
+##Config phpMyAdmin
+function config_phpmyadmin(){
+    echo ""
+    echo -e "${LANG_CONFIG_PHPMYADMIN}"
+    sleep 2
+    BLOWFISH_SECRET=`date +%s | sha256sum | base64 | head -c 32`
+    cat > "${DEFAULT_DIR_WEB}/phpmyadmin/config.inc.php" <<EOCONFIGINC
+<?php
+\$cfg['blowfish_secret'] = '${BLOWFISH_SECRET}';
+\$i = 0;
+\$i++;
+\$cfg['Servers'][\$i]['auth_type'] = 'cookie';
+\$cfg['Servers'][\$i]['host'] = 'localhost';
+\$cfg['Servers'][\$i]['connect_type'] = 'tcp';
+\$cfg['Servers'][\$i]['compress'] = false;
+\$cfg['Servers'][\$i]['AllowNoPassword'] = false;
+\$cfg['UploadDir'] = '';
+\$cfg['SaveDir'] = '';
+\$cfg['PmaNoRelation_DisableWarning'] = true;
+\$cfg['VersionCheck'] = false;
+EOCONFIGINC
+
+    if [ ${WEB} == "apache" ]
+    then
+        chown apache.apache /var/lib/php/session
+        fi
+}
+
+# Auto Config
+function auto_config(){
+    if [ "${AUTO_CONFIG}" != "yes" ]
+    then
+            echo "${LANG_AUTO_CONFIG1}"
+    else
+        if [ "${PHP_VER}" == "no" ]
+        then
+            echo "${LANG_AUTO_CONFIG2}"
+        else
+        config_php
+        fi
+        if [ "${MYSQL_INST}" == "no" ]
+        then
+            echo "${LANG_AUTO_CONFIG3}"
+        else
+            config_mysql
+        fi
+        if [ "${PHP_VER}" == "no" ]
+        then
+            echo "${LANG_AUTO_CONFIG4}"
+        else
+        config_phpmyadmin
+        fi
+        if [ "${WEB}" == "no" ]
+        then
+            echo "${LANG_AUTO_CONFIG5}"
+        elif [ ${WEB} == "nginx" ]
+            then
+            config_nginx
+                        config_php_fpm
+        fi
+    fi
+}
+
+# Restart service
+function restart_services(){
+    if [ -f /bin/systemctl ]
+    then
+        systemctl restart ${1}
+    else
+        service ${1} restart
+    fi
+}
+
+# Start service when boot
+function start_on_boot(){
+    if [ -f /bin/systemctl ]
+    then
+        systemctl enable ${1}
+    else
+        chkconfig ${1} on
+    fi
+}
+
+function check_exist(){
+   if [ ${1} -eq 1 ]
+    then
+        echo -e "${LANG_CHECK_EXIST1}"
+    else
+        echo -e "${LANG_CHECK_EXIST2}"
+fi
+}
+
+# Show install time and say good bye
+function end_time(){
+        INSTALL_TIME=$((${END_TIME} - ${BEGIN_TIME}))
+        HOUR=$((${INSTALL_TIME}/3600))
+        MINUTE=$((${INSTALL_TIME}%3600/60))
+        SECOND=$((${INSTALL_TIME}%60))
+        if [ ${HOUR} -lt 10 ]
+        then
+        HOUR="0${HOUR}"
+        fi
+        if  [ ${MINUTE} -lt 10 ]
+    then
+        MINUTE="0${MINUTE}"
+    fi
+    if  [ ${SECOND} -lt 10 ]
+    then
+        SECOND="0${SECOND}"
+    fi
+        echo -e "${LANG_END_TIME1}${GREEN}${RIGHT_NOW}${REMOVE}"
+        echo -e "${LANG_END_TIME2}${GREEN}${RIGHT_NOW2}${REMOVE}"
+    echo -e "${LANG_END_TIME3}${GREEN}${HOUR}:${MINUTE}:${SECOND}${REMOVE}"
+}
+
+# Check services after install
+function check_services(){
+    CHECK_PHP_INSTALLED=`command -v php | wc -l`
+        CHECK_WEB_INSTALLED=`command -v ${WEB} | wc -l`
+        CHECK_SQL_INSTALLED=`command -v mysql | wc -l`
+    CHECK_FTP_INSTALLED=`command -v proftpd | wc -l`
+        CHECK_WEB_RUNNING=`pidof ${WEB} | wc -l`
+    CHECK_SQL_RUNNING=`pidof mysqld | wc -l`
+    CHECK_FTP_RUNNING=`pidof proftpd | wc -l`
+
+    PHP_INSTALLED=`check_exist ${CHECK_PHP_INSTALLED}`
+        WEB_INSTALLED=`check_exist ${CHECK_WEB_INSTALLED}`
+        SQL_INSTALLED=`check_exist ${CHECK_SQL_INSTALLED}`
+        FTP_INSTALLED=`check_exist ${CHECK_FTP_INSTALLED}`
+
+        WEB_RUNNING=`check_exist ${CHECK_WEB_RUNNING}`
+        SQL_RUNNING=`check_exist ${CHECK_SQL_RUNNING}`
+        FTP_RUNNING=`check_exist ${CHECK_FTP_RUNNING}`
+    echo " ---"
+    echo "${LANG_CHECK_SERVICES1}"
+        echo "${LANG_CHECK_SERVICES2}"
+        echo " PHP       ${PHP_INSTALLED}"
+        echo " ${WEB}     ${WEB_INSTALLED}         ${WEB_RUNNING}"
+        echo " MySQL     ${SQL_INSTALLED}         ${SQL_RUNNING}"
+    echo " FTP       ${FTP_INSTALLED}         ${FTP_RUNNING}"
+    if [ ${WEB} == "nginx" ]
+    then
+        CHECK_PHP_FPM_INSTALLED=`command -v php-fpm | wc -l`
+                CHECK_PHP_FPM_RUNNING=`pidof php-fpm | wc -l`
+        PHP_FPM_INSTALLED=`check_exist ${CHECK_PHP_FPM_INSTALLED}`
+                PHP_FPM_RUNNING=`check_exist ${CHECK_PHP_FPM_RUNNING}`
+        echo " php-fpm   ${PHP_FPM_INSTALLED}         ${PHP_FPM_RUNNING}"
+    fi
+}
+
+# Show information to screen
+function show_info(){
+    echo " ---"
+    echo "${LANG_SHOW_INFO1}"
+    if [[ "${OPTION}" == "mysql" ]] || [[ "${OPTION}" == "all" ]]
+    then
+        if [[ "${MYSQL_INST}" != "no" ]] && [[ "${AUTO_CONFIG}" != "yes" ]]
+        then
+            echo "${LANG_SHOW_INFO2}"
+        elif [[ "${MYSQL_INST}" != "no" ]] && [[ "${AUTO_CONFIG}" == "yes" ]]
+        then
+            echo "${LANG_SHOW_INFO3}"
+            echo "${LANG_SHOW_INFO4}"
+            echo " http://${IPADDRESS}/phpmyadmin"
+            echo "${LANG_SHOW_INFO5}"
+            echo "${LANG_SHOW_INFO6} ${SQLPASS}"
+        fi
+    fi
+    echo ""
+    echo "${LANG_SHOW_INFO7}"
+    echo -e "${LANG_SHOW_INFO8}"
+}
+
+# Download mce
+function download_mce(){
+    if [ ${CHOOSE_LANG} -eq 1 ]
+    then
+        LANG="en"
+    elif [ ${CHOOSE_LANG} -eq 2 ]
+    then
+        LANG="vi"
+    fi
+    if [[ "${OPTION}" == "all" ]] && [[ "${WEB}" == "nginx" ]]
+    then
+        echo -e "${LANG_DOWNLOAD_MCE1}"
+        false
+        while [ $? -eq 1 ]
+        do
+            read -p "${LANG_DOWNLOAD_MCE2}" CHOICE
+            if [[ $CHOICE == Yes ]] || [[ $CHOICE == No ]]
+            then
+                true
+            else
+                echo -e "{RED}${LANG_DOWNLOAD_MCE7}{REMOVE}"
+                false
+            fi
+        done
+        if [ "${CHOICE}" == "Yes" ]
+        then
+            echo -e "${GREEN}${LANG_DOWNLOAD_MCE3}${REMOVE}"
+            sleep 2
+            curl -o ${DIR}/mce_create https://files.buildmce.com/lemp/mce_create
+            sh ${DIR}/mce_create ${LANG}
+            rm -f ${DIR}/mce_create
+            mv ${DIR}/build ${BASH_DIR}/build
+            mv ${DIR}/options.conf ${BASH_DIR}/options.conf
+            echo ""
+            echo -e "${LANG_DOWNLOAD_MCE4}"
+        fi
+    fi
+    echo -e "${LANG_DOWNLOAD_MCE5}"
+    echo -e "${LANG_DOWNLOAD_MCE6}"
+    for i in 5 4 3 2 1
+    do
+        printf "$i "
+        sleep 1
+    done
+    echo "REBOOT!"
+    init 6
+}
+
+# Choose languages
+function choose_languague(){
+    false
+    while [ $? -eq 1 ]
+    do
+        List_CHOOSE_LANG=(1 2)
+        read -p " Your choice( Lựa chọn của bạn): " CHOOSE_LANG
+        check_list "${CHOOSE_LANG}" "${List_CHOOSE_LANG[*]}"
+        if [ $? -eq 1 ]
+        then
+            echo " Wrong option. Please choose 1 or 2!"
+            echo "(Lựa chọn không phù hợp. Vui lòng chọn 1 hoặc 2!)"
+            choose_languague
+        fi
+    done
+}
+
+clear
+echo " Now we support 2 languagues, please choose 1 or 2:"
+echo "(Hiện tại chúng tôi hỗ trợ 2 ngôn ngữ, vui lòng chọn 1 hoặc 2:)"
+echo " 1. English"
+echo " 2. Tiếng Việt"
+choose_languague
+
+multi_lang
+
+# Check control panel
+check_control_panel
+
+# Check option
+check_options
+
+# Check Information
+check_info
+
+# Show information will be install
+show_info_install
+
+# Install services
+case ${OPTION} in
+    all) install_all;;
+    php) install_php;;
+    mysql) install_mariadb; config_mysql; restart_services mysql;;
+    ftp) install_ftp; restart_services proftpd;;
+    httpd) install_web; restart_services httpd;;
+    nginx) install_web; restart_services nginx;;
+    csf) install_csf;;
+esac

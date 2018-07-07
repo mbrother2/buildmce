@@ -1,0 +1,107 @@
+#!/bin/bash
+# MCE_LEMP download all scripts of mce
+# Version: 1.0
+# Author: mbrother
+# Change log:
+
+# Set variable
+GREEN='\e[92m'
+RED='\e[31m'
+REMOVE='\e[0m'
+BASH_DIR="/var/mce/script"
+USER_DIR="/var/mce/user"
+LINK="https://files.buildmce.com/lemp"
+LANG=$1
+
+# Check option in a list
+check_list(){
+    false
+    VALUE=$1
+    List=($2)
+    for i in ${List[*]}
+    do
+        [[ "${i}" == "${VALUE}" ]] && return 0
+    done
+}
+
+# Create directory if not exist
+create_dir(){
+    [ ! -d ${BASH_DIR} ] && mkdir -p ${BASH_DIR}
+    [ ! -d ${USER_DIR} ] && mkdir -p ${USER_DIR}
+}
+
+# Download script
+download_script(){
+    curl -o ${BASH_DIR}/advanced_option        ${LINK}/advanced_option
+    curl -o ${BASH_DIR}/auto_backup            ${LINK}/auto_backup
+    curl -o ${BASH_DIR}/backup_full            ${LINK}/backup_full
+    curl -o ${BASH_DIR}/backup_user            ${LINK}/backup_user
+    curl -o ${BASH_DIR}/change_domain          ${LINK}/change_domain
+    curl -o ${BASH_DIR}/change_language        ${LINK}/change_language
+    curl -o ${BASH_DIR}/change_password        ${LINK}/change_password
+    curl -o ${BASH_DIR}/change_php_version     ${LINK}/change_php_version
+    curl -o ${BASH_DIR}/check_service          ${LINK}/check_service
+    curl -o ${BASH_DIR}/check_value            ${LINK}/check_value
+    curl -o ${BASH_DIR}/clear_cache            ${LINK}/clear_cache
+    curl -o ${BASH_DIR}/create_database        ${LINK}/create_database
+    curl -o ${BASH_DIR}/create_full            ${LINK}/create_full
+    curl -o ${BASH_DIR}/create_ssl_letsencrypt ${LINK}/create_ssl_letsencrypt
+    curl -o ${BASH_DIR}/create_swap            ${LINK}/create_swap
+    curl -o ${BASH_DIR}/delete_user            ${LINK}/delete_user
+    curl -o ${BASH_DIR}/lang_en                ${LINK}/lang_en
+    curl -o ${BASH_DIR}/lang_vi                ${LINK}/lang_vi
+    curl -o ${BASH_DIR}/mce                    ${LINK}/mce
+    curl -o ${BASH_DIR}/rotate_log             ${LINK}/rotate_log
+    curl -o ${BASH_DIR}/restore_backup         ${LINK}/restore_backup
+    curl -o ${BASH_DIR}/show_info              ${LINK}/show_info
+    curl -o ${BASH_DIR}/update_service         ${LINK}/update_service
+    curl -o ${BASH_DIR}/variable_common        ${LINK}/variable_common
+}
+
+# Chmod script
+chmod_script(){
+    chmod 755 ${BASH_DIR}/advanced_option
+    chmod 755 ${BASH_DIR}/auto_backup
+    chmod 755 ${BASH_DIR}/backup_full
+    chmod 755 ${BASH_DIR}/backup_user
+    chmod 755 ${BASH_DIR}/change_domain
+    chmod 755 ${BASH_DIR}/change_language
+    chmod 755 ${BASH_DIR}/change_password
+    chmod 755 ${BASH_DIR}/change_php_version
+    chmod 755 ${BASH_DIR}/check_service
+    chmod 755 ${BASH_DIR}/check_value
+    chmod 755 ${BASH_DIR}/clear_cache
+    chmod 755 ${BASH_DIR}/create_database
+    chmod 755 ${BASH_DIR}/create_full
+    chmod 755 ${BASH_DIR}/create_ssl_letsencrypt
+    chmod 755 ${BASH_DIR}/create_swap
+    chmod 755 ${BASH_DIR}/delete_user
+    chmod 755 ${BASH_DIR}/lang_en
+    chmod 755 ${BASH_DIR}/lang_vi
+    [[ -f ${BASH_DIR}/lang ]] && rm -f ${BASH_DIR}/lang
+    ln -s ${BASH_DIR}/lang_${LANG} ${BASH_DIR}/lang
+    chmod 755 ${BASH_DIR}/mce
+    [ ! -f /usr/sbin/mce ] && ln -s ${BASH_DIR}/mce /usr/sbin/mce
+    chmod 755 ${BASH_DIR}/rotate_log
+    chmod 755 ${BASH_DIR}/restore_backup
+    chmod 755 ${BASH_DIR}/show_info
+    chmod 755 ${BASH_DIR}/update_service
+    chmod 755 ${BASH_DIR}/variable_common
+}
+
+List_LANG=(en vi)
+check_list "${LANG}" "${List_LANG[*]}"
+if [ $? -eq 1 ]
+then
+    echo -e " Not support language ${RED}${LANG}${REMOVE}!"
+    echo -e " Please use: sh ${0} [${GREEN}en${REMOVE}] [${GREEN}vi${REMOVE}]"
+    echo -e " Example: ${GREEN}sh ${0} en${REMOVE}"
+    echo -e "(Không hỗ trợ ngôn ngữ ${RED}${LANG}${REMOVE}!)"
+    echo -e "(Vui lòng sử dụng: sh ${0} [${GREEN}en${REMOVE}] [${GREEN}vi${REMOVE}])"
+    echo -e "(Ví dụ: ${GREEN}sh ${0} vi${REMOVE})"
+else
+    create_dir
+    download_script
+    chmod_script
+    echo "0 0 1 * * /var/mce/script/rotate_log" >> /var/spool/cron/root
+fi

@@ -1,0 +1,437 @@
+#!/bin/bash
+# MCE_LEMP restore backup for an account
+# Version: 1.0
+# Author: mbrother
+# Change log:
+
+source /var/mce/script/variable_common
+source ${BASH_DIR}/lang
+[[ -f /var/mce/custom/lang ]] && source /var/mce/custom/lang
+
+# Exit if do not exist backup
+check_backup_exist(){
+    if [[ ! -d /backup ]] || [[ -z $(ls /backup) ]]
+    then
+        echo -e "${RED}${LANG_RESTORE_BACKUP1}${REMOVE}"
+        echo -e "${LANG_RESTORE_BACKUP24} ${GREEN}/backup${REMOVE}"
+        exit
+    fi
+}
+
+# Print backups
+print_backup(){
+    echo -e "${LANG_RESTORE_BACKUP2} ${GREEN}/backup${REMOVE}"
+    echo -e "${GREEN}${LANG_RESTORE_BACKUP3}${REMOVE}"
+    ls -1 /backup | grep "tar.gz" > /tmp/all_backups
+    VAR_TMP=1
+    rm -f /tmp/all_backups2
+    for i in $(cat /tmp/all_backups)
+    do
+        echo " ${VAR_TMP}. ${i}" >> /tmp/all_backups2
+        VAR_TMP=$[ ${VAR_TMP} + 1 ]
+    done
+    cat /tmp/all_backups2
+}
+
+# Choose backup to restore
+choose_backup(){
+    print_backup
+    echo ""
+    echo " ${LANG_RESTORE_BACKUP4}"
+    false
+    while [ $? -eq 1 ]
+    do
+        read -p " ${LANG_RESTORE_BACKUP5} " CHOICE
+        BACKUP_COUNT=`ls -1 /backup | grep "tar.gz" | wc -l`
+        ${BASH_DIR}/check_value number "${CHOICE}" "${BACKUP_COUNT}"
+        if [ $? -eq 1 ]
+        then
+            if [ ${BACKUP_COUNT} -eq 1 ]
+            then
+                echo -e "${RED}${LANG_RESTORE_BACKUP6}${REMOVE}"
+                false
+            else
+                echo -e "${RED}${LANG_RESTORE_BACKUP7} ${BACKUP_COUNT}!${REMOVE}"
+                false
+            fi
+        fi
+    done
+}
+
+# Copy backup file to tmp directory and extract
+copy_backup(){
+    echo -e " ${GREEN}${LANG_RESTORE_BACKUP8}${REMOVE}"
+    sleep 2
+    BACKUP=`cat /tmp/all_backups2 | grep "${CHOICE}"". " | awk '{print $2}'`
+    BACKUP2=`echo ${BACKUP} | sed s/\.tar\.gz//`
+    [[ ! -d ${RESTORE_DIR} ]] && mkdir -p /home/tmp/restore
+    cp /backup/${BACKUP} ${RESTORE_DIR}/${BACKUP}
+    cd ${RESTORE_DIR}
+    tar -xf ${BACKUP}
+}
+
+collect_info(){
+    # collect informations from mce's backup
+    if [ -f ${RESTORE_DIR}/${BACKUP2}/conf/nginx.*.conf ]
+    then
+        BACKUP_TYPE="mce"
+        echo -e " ${GREEN}${LANG_RESTORE_BACKUP9}${REMOVE}"
+        sleep 2
+        USER=`cat /tmp/all_backups2 | grep "${CHOICE}"". " | awk '{print $2}' | cut -d "_" -f 1`
+        PHP_MAIN1=`echo ${PHP_MAIN} | sed 's/\.//'`
+        # remove user if exist
+        CHECK_USER_EXIST=`cat /etc/shadow | cut -d":" -f1 | grep -wc "${USER}"`
+        if [ ${CHECK_USER_EXIST} -eq 1 ]
+        then
+            remove_user
+        fi
+        mv ${RESTORE_DIR}/${BACKUP2}/${USER} ${USER_DIR}/${USER}
+        PHP_VER=`cat ${USER_DIR}/"${USER}"/php`
+        PHP_VER1=`echo ${PHP_VER} | sed 's/\.//'`
+        if [ "${PHP_VER1}" == "${PHP_MAIN1}" ]
+        then
+            FPM_DIR="/etc/php-fpm.d"
+        else
+            FPM_DIR="/etc/opt/remi/php${PHP_VER1}/php-fpm.d"
+        fi
+        USER_PWD=`cat ${USER_DIR}/${USER}/pwd`
+        DOMAIN=`cat ${USER_DIR}/${USER}/domain`
+        SQL_DIR="${RESTORE_DIR}/${BACKUP2}/mysql"
+    fi
+
+    # collect informations from cPanel's backup
+    if [ -f ${RESTORE_DIR}/${BACKUP2}/homedir_paths ]
+    then
+        BACKUP_TYPE="cpanel"
+        echo -e " ${GREEN}${LANG_RESTORE_BACKUP10}${REMOVE}"
+        sleep 2
+        USER=`cat ${RESTORE_DIR}/${BACKUP2}/homedir_paths | cut -d"/" -f3`
+        [[ ! -d ${USER_DIR}/${USER} ]] && mkdir ${USER_DIR}/${USER}
+        USER_PWD=`cat ${RESTORE_DIR}/${BACKUP2}/shadow`
+        DOMAIN=`cat ${RESTORE_DIR}/${BACKUP2}/userdata/main | grep main_domain | awk '{print $2}'`
+        echo "$USER_PWD" > ${USER_DIR}/${USER}/pwd
+        echo "$DOMAIN" > ${USER_DIR}/${USER}/domain
+        echo "${PHP_MAIN}" > ${USER_DIR}/${USER}/php
+        for i in $(ls -1 ${RESTORE_DIR}/${BACKUP2}/mysql-timestamps | grep -wv mysql)
+        do
+            SUFFIX=`echo ${i} | cut -d"_" -f2`
+            DB_NAME=${i}
+            DB_USER=`cat ${RESTORE_DIR}/${BACKUP2}/mysql.sql | grep -F "${USER}\_${SUFFIX}" | grep localhost | grep -v \'${USER}\' | cut -d"'" -f2`
+            USER_DB_PWD=`cat ${RESTORE_DIR}/${BACKUP2}/mysql.sql | grep "'${DB_USER}'@'localhost' IDENTIFIED BY PASSWORD" |  cut -d "'" -f6`
+            echo "${DB_NAME}:${DB_USER}:${USER_DB_PWD}" >> ${USER_DIR}/${USER}/db
+        done
+        HOME_DIR="${RESTORE_DIR}/${BACKUP2}/homedir/public_html/"
+        SQL_DIR="${RESTORE_DIR}/${BACKUP2}/mysql"
+    fi
+
+    #collect informations from DirectAdmin's backup
+    if [ -f ${RESTORE_DIR}/backup/user.conf ]
+    then
+        BACKUP_TYPE="directadmin"
+        echo -e " ${GREEN}${LANG_RESTORE_BACKUP11}${REMOVE}"
+        sleep 2
+        USER=`cat ${RESTORE_DIR}/backup/user.conf | grep username | cut -d"=" -f2`
+        [[ ! -d ${USER_DIR}/${USER} ]] && mkdir ${USER_DIR}/${USER}
+        USER_PWD=`cat ${RESTORE_DIR}/backup/.shadow`
+        DOMAIN=`cat ${RESTORE_DIR}/backup/user.conf | grep domain= | cut -d"=" -f2`
+        echo "$USER_PWD" > ${USER_DIR}/${USER}/pwd
+        echo "$DOMAIN" > ${USER_DIR}/${USER}/domain
+        echo "${PHP_MAIN}" > ${USER_DIR}/${USER}/php
+        for i in $(ls -1 ${RESTORE_DIR}/backup | grep "\.sql" | cut -d"." -f1)
+        do
+            DB_NAME=${i}
+            DB_USER=`cat ${RESTORE_DIR}/backup/${i}.conf | grep -v ${USER}= | grep passwd | cut -d"=" -f1`
+            USER_DB_PWD=`cat ${RESTORE_DIR}/backup/${i}.conf | grep -v ${USER}= | grep passwd | cut -d"&" -f15 | cut -d"=" -f2`
+            echo "${DB_NAME}:${DB_USER}:${USER_DB_PWD}" >> ${USER_DIR}/${USER}/db
+        done
+        HOME_DIR="${RESTORE_DIR}/domains/${DOMAIN}/public_html"
+        SQL_DIR="${RESTORE_DIR}/backup"
+    fi
+}
+
+## Restore mce
+remove_user(){
+    echo -e " ${GREEN}${LANG_RESTORE_BACKUP12}${REMOVE}"
+    sleep 2
+    DOMAIN=`cat ${USER_DIR}/${USER}/domain`
+    mkdir /tmp/delete
+    # remove home directory
+    cd /home
+    rm -rf ${USER}/
+    # remove mailbox file
+    cd /var/spool/mail
+    rm -f ${USER}
+    # remove database
+    cat ${USER_DIR}/"${USER}"/db | cut -f 1 -d ":" > /tmp/delete/db.txt
+    for i in $(cat /tmp/delete/db.txt)
+    do
+        ${MYSQL} -uroot -e "DROP DATABASE ${i};"
+       done
+    # remove user database
+    cat ${USER_DIR}/"${USER}"/db | cut -f 2 -d ":" > /tmp/delete/userdb.txt
+    for i in $(cat /tmp/delete/userdb.txt)
+    do
+        Q1="SELECT User,Host FROM mysql.user;"
+        Q2="DROP USER '${i}'@'localhost';;"
+        SQL="${Q1}${Q2}"
+        ${MYSQL} -uroot -e "${SQL}" > /dev/null
+    done
+    # remove nginx conf
+    cd ${VHOST_DIR}
+    rm -f ${DOMAIN}.conf
+    # remove nginx cache folder
+    cd /etc/nginx/cache
+    rm -rf ${USER}
+    # remove php-fpm conf
+    PHP_OLD1=`cat ${USER_DIR}/${USER}/php | sed 's/\.//'`
+    if [ "${PHP_OLD1}" == "${PHP_MAIN1}" ]
+    then
+        FPM_DIR="/etc/php-fpm.d"
+        PHP_FPM="php-fpm"
+    else
+        FPM_DIR="/etc/opt/remi/php${PHP_OLD1}/php-fpm.d/"
+        PHP_FPM="php${PHP_OLD1}-php-fpm"
+    fi
+    cd ${FPM_DIR}
+    rm -f ${DOMAIN}.conf
+    # remove folder create by MCE
+    rm -rf ${USER_DIR}/"${USER}"/
+    # remove tmp file
+    rm -rf /tmp/delete
+    # reload nginx, php-fpm
+    if [ -f /bin/systemctl ]
+    then
+        systemctl reload nginx
+        systemctl reload ${PHP_FPM}
+    else
+        service nginx reload
+        service ${PHP_FPM} reload
+    fi
+    # kill all user's processes
+    for i in $(ps --user ${USER} | awk {'print $1'} | grep -v PID)
+    do
+        kill -9 ${i}
+    done
+
+    # remove user
+    userdel ${USER}
+}
+
+# Restore mce backup
+restore_mce(){
+    create_user
+    create_database
+    echo -e " ${GREEN}${LANG_RESTORE_BACKUP13}${REMOVE}"
+    sleep 2
+    rsync -a ${RESTORE_DIR}/${BACKUP2}/homedir/ /home/"${USER}"/
+    chmod 755 /home/"${USER}"
+    chown -R ${USER}.${USER} /home/"${USER}"
+    mv ${RESTORE_DIR}/${BACKUP2}/conf/nginx."${DOMAIN}".conf ${VHOST_DIR}/"${DOMAIN}".conf
+    REMI_DIR="/etc/opt/remi"
+    CHECK_PHP=`command -v php${PHP_VER1} | wc -l`
+    if [[ ${CHECK_PHP} -eq 0 ]] && [[ "${PHP_VER1}" != "${PHP_MAIN1}" ]]
+    then
+        echo " ${LANG_RESTORE_BACKUP14} ${USER} ${LANG_RESTORE_BACKUP15} ${PHP_VER} ${LANG_RESTORE_BACKUP16}"
+        sleep 2
+        yum -y --enablerepo=remi-php${PHP_VER1} install php${PHP_VER1}-php php${PHP_VER1}-php-fpm php${PHP_VER1}-php-devel php${PHP_VER1}-php-curl php${PHP_VER1}-php-exif php${PHP_VER1}-php-fileinfo php${PHP_VER1}-php-gd php${PHP_VER1}-php-hash php${PHP_VER1}-php-intl php${PHP_VER1}-php-imap php${PHP_VER1}-php-json php${PHP_VER1}-php-mbstring php${PHP_VER1}-php-mcrypt php${PHP_VER1}-php-mysqlnd php${PHP_VER1}-php-soap php${PHP_VER1}-php-xml php${PHP_VER1}-php-simplexml php${PHP_VER1}-php-xmlrpc php${PHP_VER1}-php-xsl php${PHP_VER1}-php-zip php${PHP_VER1}-php-zlib php${PHP_VER1}-php-session php${PHP_VER1}-php-filter
+        if [[ "${PHP_VER1}" == "54" ]] || [[ "${PHP_VER1}" == "55" ]]
+        then
+            [ ! -d ${REMI_DIR} ] && mkdir ${REMI_DIR}
+            ln -s /opt/remi/php${PHP_VER1}/root/etc ${REMI_DIR}/php${PHP_VER1}
+        fi
+        mv ${REMI_DIR}/php${PHP_VER1}/php-fpm.d/www.conf ${REMI_DIR}/php${PHP_VER1}/php-fpm.d/www.conf.bak
+        cp /etc/php-fpm.d/www.conf ${REMI_DIR}/php${PHP_VER1}/php-fpm.d/www.conf
+        sed -i "s/\/var\/run\/phpmyadmin/\/var\/run\/phpmyadmin\.php${PHP_VER1}/g" ${REMI_DIR}/php${PHP_VER1}/php-fpm.d/www.conf
+    fi
+    mv ${RESTORE_DIR}/${BACKUP2}/conf/php-fpm."${DOMAIN}".conf ${FPM_DIR}/"${DOMAIN}".conf
+}
+
+# Create user
+create_user(){
+    echo -e " ${GREEN}${LANG_RESTORE_BACKUP17}${REMOVE}"
+    sleep 2
+    useradd ${USER}
+    PUBLIC_HTML="/home/"${USER}"/public_html"
+    mkdir ${PUBLIC_HTML}
+    mkdir /home/"${USER}"/logs
+    chmod 755 -R /home/"${USER}"
+    chown -R ${USER}.${USER} /home/"${USER}"
+
+    USER_PWD1="${USER_PWD//\//\\/}"
+    sed -i "s/${USER}:\!\!/${USER}:${USER_PWD1}/" /etc/shadow
+}
+
+# Create database and user database
+create_database(){
+    echo -e " ${GREEN}${LANG_RESTORE_BACKUP18}${REMOVE}"
+    sleep 2
+    for i in $(cat ${USER_DIR}/${USER}/db)
+    do
+        DB_NAME=`echo ${i} | cut -d":" -f1`
+        DB_USER=`echo ${i} | cut -d":" -f2`
+        USER_DB_PWD=`echo ${i} | cut -d":" -f3`
+        Q1="CREATE DATABASE IF NOT EXISTS ${DB_NAME};"
+        Q2="GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'localhost' IDENTIFIED BY PASSWORD '${USER_DB_PWD}';"
+        Q3="FLUSH PRIVILEGES;"
+        SQL="${Q1}${Q2}${Q3}"
+        ${MYSQL} -uroot -e "${SQL}"
+        ${MYSQL} ${DB_NAME} < ${SQL_DIR}/${DB_NAME}.sql
+    done
+}
+
+# Create VirtualHost
+create_virtualhost(){
+    echo -e " ${GREEN}${LANG_RESTORE_BACKUP19}${REMOVE}"
+    sleep 2
+    [[ ! -d $VHOST_DIR ]] && mkdir $VHOST_DIR
+    [[ ! -d /etc/nginx/cache ]] && mkdir /etc/nginx/cache
+
+    cat > "${VHOST_DIR}/${DOMAIN}.conf" <<EOnginx_vhost_conf
+upstream ${USER} {
+        zone tcp_servers 64k;
+        server unix:/var/run/${USER}.sock1 weight=100 max_fails=3 fail_timeout=3;
+        server unix:/var/run/${USER}.sock2 weight=100 max_fails=3 fail_timeout=3;
+        server unix:/var/run/${USER}.sock3 weight=100 max_fails=3 fail_timeout=3;
+        server unix:/var/run/${USER}.sock4 weight=100 max_fails=3 fail_timeout=3;
+}
+fastcgi_cache_path /etc/nginx/cache/${USER} levels=1:2 keys_zone=${USER}:5m max_size=900m inactive=40m;
+server {
+    listen 80;
+
+    root /home/${USER}/public_html;
+    index index.php index.html index.htm;
+
+    server_name ${DOMAIN} www.${DOMAIN};
+
+#       access_log /home/${USER}/logs/access.log;
+#       error_log /home/${USER}/logs/error.log;
+        access_log /home/${USER}/logs/traffic.log traffic;
+
+    location ~* \.(jpg|jpeg|gif|png|css|js|ico|xml)$ {
+        access_log        off;
+        log_not_found     off;
+        expires           360d;
+    }
+
+    if (\$request_method = POST)
+    {
+        set \$no_cache 1;
+    }
+    if (\$query_string != "")
+    {
+        set \$no_cache 1;
+    }
+    if (\$request_uri ~* "/(admin|login|wp-admin|wp-login.php|search|tim-kiem)")
+    {
+        set \$no_cache 1;
+    }
+
+    location / {
+        try_files \$uri \$uri/ /index.php?\$args;
+    }
+
+    location ~ \.php\$ {
+        try_files \$uri =404;
+        fastcgi_split_path_info ^(.+\.php)(/.+)\$;
+        fastcgi_pass ${USER};
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+        include fastcgi_params;
+
+        fastcgi_cache_key \$scheme\$request_method\$host\$request_uri;
+        fastcgi_cache ${USER};
+        fastcgi_cache_valid 200 400 302 40m;
+        fastcgi_cache_methods GET HEAD;
+        fastcgi_cache_use_stale updating error timeout invalid_header http_500 http_503 http_404;
+        fastcgi_cache_bypass \$no_cache;
+        fastcgi_no_cache \$no_cache;
+        add_header X-Cache \$upstream_cache_status;
+        fastcgi_buffers 16 16k;
+        fastcgi_buffer_size 16k;
+    }
+}
+EOnginx_vhost_conf
+
+    [[ ! -d ${FPM_DIR} ]] && mkdir ${FPM_DIR}
+    for i in 1 2 3 4
+    do
+        cat >> "${FPM_DIR}/${DOMAIN}.conf" <<EOfpm_vhost_conf
+[${USER}${i}]
+user = ${USER}
+group = ${USER}
+listen = /var/run/${USER}.sock${i}
+listen.owner = nginx
+listen.group = nginx
+php_admin_value[disable_functions] = passthru,shell_exec,system
+php_admin_flag[allow_url_fopen] = off
+pm = dynamic
+pm.max_children = 50
+pm.start_servers = 5
+pm.min_spare_servers = 2
+pm.max_spare_servers = 5
+chdir = /
+EOfpm_vhost_conf
+    done
+}
+
+# Copy source code
+copy_source(){
+    echo -e " ${GREEN}${LANG_RESTORE_BACKUP13}${REMOVE}"
+    sleep 2
+    command -v rsync >/dev/null 2>&1 || yum -y install rsync > /dev/null &
+    rsync -a ${HOME_DIR}/ /home/${USER}/public_html/
+    chown -R ${USER}.${USER} /home/${USER}/public_html
+    chmod 755 /home/${USER}/public_html
+}
+
+# Remove tmp file, directory
+remove_tmp(){
+    echo -e " ${GREEN}${LANG_RESTORE_BACKUP20}${REMOVE}"
+    sleep 2
+    rm -f /tmp/all_backups
+    rm -f /tmp/all_backups2
+    rm -rf /home/tmp
+}
+
+# Restart services
+restart_services(){
+    echo -e " ${GREEN}${LANG_RESTORE_BACKUP21}${REMOVE}"
+    sleep 2
+    cd /
+    if [ "${PHP_VER1}" == "${PHP_MAIN1}" ]
+    then
+        PHP_FPM="php-fpm"
+    else
+        PHP_FPM="php${PHP_VER1}-php-fpm"
+    fi
+    if [ -f /bin/systemctl ]
+    then
+        systemctl restart nginx
+        systemctl restart ${PHP_FPM}
+    else
+        service nginx restart
+        service ${PHP_FPM} restart
+    fi
+}
+
+# Show information
+show_informations(){
+    echo -e " ${GREEN}${LANG_RESTORE_BACKUP22} ${USER} ${LANG_RESTORE_BACKUP23}${REMOVE}"
+}
+
+check_backup_exist
+choose_backup
+copy_backup
+collect_info
+if [ "${BACKUP_TYPE}" == "mce" ]
+then
+    restore_mce
+else
+    create_user
+    create_database
+    create_virtualhost
+    copy_source
+fi
+remove_tmp
+restart_services
+show_informations

@@ -1,0 +1,92 @@
+#!/bin/bash
+# MCE_LEMP enable cron backup
+# Version: 1.0
+# Author: mbrother
+# Change log:
+
+
+# Enable cron backup
+enable_backup(){
+    echo "0 0 * * * $BASH_DIR/backup_full" >> /var/spool/cron/root
+    if [ -f /bin/systemctl ]
+    then
+        systemctl restart crond
+    else
+        /etc/init.d/crond restart > /dev/null
+    fi
+}
+
+source /var/mce/script/variable_common
+source ${BASH_DIR}/lang
+[[ -f /var/mce/custom/lang ]] && source /var/mce/custom/lang
+
+echo " ${LANG_AUTO_BACKUP1}"
+echo " ${LANG_AUTO_BACKUP2}"
+echo " ${LANG_AUTO_BACKUP3}"
+false
+while [ $? -eq 1 ]
+do
+    read -p " ${LANG_AUTO_BACKUP4} " CHOICE
+    ${BASH_DIR}/check_value number "${CHOICE}" 2
+    if [ $? -eq 1 ]
+    then
+        echo -e "${RED}${LANG_AUTO_BACKUP5}${REMOVE}"
+        false
+    fi
+done
+
+if [ ! -d ${USER_DIR} ]
+then
+    echo -e "${RED}${LANG_AUTO_BACKUP6}${REMOVE}"
+    exit
+else
+    CHECK_USER=`ls /var/mce/user/ | wc -l`
+    if [ ${CHECK_USER} -eq 0 ]
+    then
+        echo -e "${RED}${LANG_AUTO_BACKUP6}${REMOVE}"
+        exit
+    fi
+fi
+
+if [ ! -f /var/spool/cron/root ]
+then
+    if [ ${CHOICE} -eq 1 ]
+    then
+        enable_backup
+        echo -e "${GREEN} ${LANG_AUTO_BACKUP7}${REMOVE}"
+        echo -e "${LANG_AUTO_BACKUP8} ${GREEN}/backup${REMOVE}"
+    elif [ ${CHOICE} -eq 2 ]
+    then
+        echo "${RED} ${LANG_AUTO_BACKUP9}${REMOVE}"
+    fi
+else
+    CHECK_CRON=`cat /var/spool/cron/root | grep backup_full | wc -l`
+    if [ ${CHECK_CRON} -eq 0 ]
+    then
+        if [ ${CHOICE} -eq 1 ]
+        then
+            enable_backup
+            echo -e "${GREEN} ${LANG_AUTO_BACKUP7}${REMOVE}"
+            echo -e "${LANG_AUTO_BACKUP8} ${GREEN}/backup${REMOVE}"
+        elif [ ${CHOICE} -eq 2 ]
+        then
+            echo -e "${RED}${LANG_AUTO_BACKUP9}${REMOVE}"
+        fi
+    else
+        if [ ${CHOICE} -eq 1 ]
+        then
+            echo -e "${RED}${LANG_AUTO_BACKUP10}${REMOVE}"
+        elif [ ${CHOICE} -eq 2 ]
+        then
+            mv /var/spool/cron/root /var/spool/cron/root.bak
+            cat /var/spool/cron/root.bak | sed '/backup_full/d' > /var/spool/cron/root
+            if [ -f /bin/systemctl ]
+            then
+                systemctl restart crond
+            else
+                /etc/init.d/crond restart > /dev/null
+            fi
+            echo -e "${GREEN} ${LANG_AUTO_BACKUP11}${REMOVE}"
+        fi
+    fi
+fi

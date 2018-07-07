@@ -1,0 +1,165 @@
+#!/bin/bash
+# MCE_LEMP Check services
+# Version: 1.0
+# Author: mbrother
+# Change log:
+
+source /var/mce/script/variable_common
+source ${BASH_DIR}/lang
+[[ -f /var/mce/custom/lang ]] && source /var/mce/custom/lang
+
+check_exist(){
+    if [ ${1} -eq 1 ]
+    then
+        echo -e "${GREEN}${LANG_CHECK_SERVICE1}${REMOVE}"
+    else
+        echo -e "${RED}${LANG_CHECK_SERVICE2}${REMOVE}"
+    fi
+}
+
+check_services(){
+    WEB=nginx
+    CHECK_PHP_INSTALLED=`command -v php | wc -l`
+    CHECK_WEB_INSTALLED=`command -v ${WEB} | wc -l`
+    CHECK_SQL_INSTALLED=`command -v mysql | wc -l`
+    CHECK_FTP_INSTALLED=`command -v proftpd | wc -l`
+    CHECK_WEB_RUNNING=`pidof ${WEB} | wc -l`
+    CHECK_SQL_RUNNING=`pidof mysqld | wc -l`
+    CHECK_FTP_RUNNING=`pidof proftpd | wc -l`
+
+    PHP_INSTALLED=`check_exist ${CHECK_PHP_INSTALLED}`
+    WEB_INSTALLED=`check_exist ${CHECK_WEB_INSTALLED}`
+    SQL_INSTALLED=`check_exist ${CHECK_SQL_INSTALLED}`
+    FTP_INSTALLED=`check_exist ${CHECK_FTP_INSTALLED}`
+
+    WEB_RUNNING=`check_exist ${CHECK_WEB_RUNNING}`
+    SQL_RUNNING=`check_exist ${CHECK_SQL_RUNNING}`
+    FTP_RUNNING=`check_exist ${CHECK_FTP_RUNNING}`
+    echo " ---"
+    echo " ${LANG_CHECK_SERVICE3}"
+    echo "${LANG_CHECK_SERVICE4}" > /tmp/check_services.tmp
+    echo "${WEB} ${WEB_INSTALLED} ${WEB_RUNNING}" >> /tmp/check_services.tmp
+    echo "MySQL ${SQL_INSTALLED} ${SQL_RUNNING}" >> /tmp/check_services.tmp
+    echo "FTP ${FTP_INSTALLED} ${FTP_RUNNING}" >> /tmp/check_services.tmp
+    echo "PHP ${PHP_INSTALLED}" >> /tmp/check_services.tmp
+    if [ ${WEB} == "nginx" ]
+    then
+        CHECK_PHP_FPM_INSTALLED=`command -v php-fpm | wc -l`
+        CHECK_PHP_FPM_RUNNING=`pidof php-fpm | wc -l`
+        PHP_FPM_INSTALLED=`check_exist ${CHECK_PHP_FPM_INSTALLED}`
+        PHP_FPM_RUNNING=`check_exist ${CHECK_PHP_FPM_RUNNING}`
+        echo "php-fpm ${PHP_FPM_INSTALLED} ${PHP_FPM_RUNNING}"  >> /tmp/check_services.tmp
+        for i in ${List_PHP[*]}
+        do
+            PHP_VER1=`echo $i | sed 's/\.//'`
+            PHP_MAIN1=`echo ${PHP_MAIN} | sed 's/\.//'`
+            CHECK_PHP_FPM_VER=`command -v php${PHP_VER1} | wc -l`
+            if [ ${CHECK_PHP_FPM_VER} -eq 1 ]
+            then
+                if [ -f /bin/systemctl ]
+                then
+                    CHECK_PHP_FPM_RUNNING=`systemctl status php${PHP_VER1}-php-fpm | grep running | wc -l`
+                else
+                    CHECK_PHP_FPM_RUNNING=`service php${PHP_VER1}-php-fpm status | grep running | wc -l`
+                fi
+                if [ ${CHECK_PHP_FPM_RUNNING} -eq 1 ]
+                then
+                    PHP_FPM_RUNNING="${GREEN}${LANG_CHECK_SERVICE1}${REMOVE}"
+                else
+                    PHP_FPM_RUNNING="${RED}${LANG_CHECK_SERVICE2}${REMOVE}"
+                fi
+                echo -e "php${PHP_VER1}-php-fpm ${GREEN}${LANG_CHECK_SERVICE1}${REMOVE} ${PHP_FPM_RUNNING}" >> /tmp/check_services.tmp
+            fi
+        done
+    fi
+    cat /tmp/check_services.tmp | column -t
+    rm -f /tmp/check_services.tmp
+}
+
+do_restart(){
+    if [ -f /bin/systemctl ]
+    then
+        systemctl restart ${1}
+    else
+        service ${1} restart
+    fi
+}
+
+restart_services(){
+    if [ "$1" == "php-fpm" ]
+    then
+        for i in ${List_PHP[*]}
+        do
+            PHP_VER1=`echo $i | sed 's/\.//'`
+            PHP_MAIN1=`echo ${PHP_MAIN} | sed 's/\.//'`
+            if [ "${PHP_VER1}" == "${PHP_MAIN1}" ]
+            then
+                echo -e "${GREEN} ${LANG_CHECK_SERVICE5} $1...${REMOVE}"
+                sleep 1
+                do_restart ${1}
+            else
+                CHECK_PHP_FPM_VER=`command -v php${PHP_VER1} | wc -l`
+                if [ ${CHECK_PHP_FPM_VER} -eq 1 ]
+                then
+                    echo -e "${GREEN} ${LANG_CHECK_SERVICE5} php${PHP_VER1}-php-fpm...${REMOVE}"
+                    sleep 1
+                    do_restart php${PHP_VER1}-php-fpm
+                fi
+            fi
+        done
+    else
+        echo -e "${GREEN} ${LANG_CHECK_SERVICE5} $1...${REMOVE}"
+        sleep 1
+            do_restart ${1}
+    fi
+}
+
+choose_services(){
+    echo " ${LANG_CHECK_SERVICE6}"
+    echo " 1. nginx"
+    echo " 2. mysql(MariaDB)"
+    echo " 3. php-fpm"
+    echo " 4. ftp"
+    echo " 5. ${LANG_CHECK_SERVICE7}"
+    false
+    while [ $? -eq 1 ]
+    do
+        read -p " ${LANG_CHECK_SERVICE8} " CHOICE
+        ${BASH_DIR}/check_value number "${CHOICE}" 5
+        if [ $? -eq 1 ]
+        then
+            echo -e "${RED} ${LANG_CHECK_SERVICE9} 5${REMOVE}"
+            false
+        fi
+    done
+    case ${CHOICE} in
+        1) restart_services nginx;;
+        2) restart_services mysql;;
+        3) restart_services php-fpm;;
+        4) restart_services proftpd;;
+        5) restart_services nginx; restart_services mysql; restart_services php-fpm; restart_services proftpd;;
+    esac
+
+    check_services
+}
+
+echo " ${LANG_CHECK_SERVICE10}"
+echo " 1. ${LANG_CHECK_SERVICE11}"
+echo " 2. ${LANG_CHECK_SERVICE12}"
+echo " ${LANG_CHECK_SERVICE13} 1,2,3... -> Enter"
+false
+while [ $? -eq 1 ]
+do
+    read -p " ${LANG_CHECK_SERVICE8} " CHOICE
+    ${BASH_DIR}/check_value number "${CHOICE}" 2
+    if [ $? -eq 1 ]
+    then
+        echo -e "${RED} ${LANG_CHECK_SERVICE14} 2${REMOVE}"
+        false
+    fi
+done
+
+case ${CHOICE} in
+    1) check_services;;
+    2) choose_services;;
+esac

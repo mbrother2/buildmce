@@ -1,0 +1,305 @@
+#!/bin/bash
+# MCE_LEMP update mce script
+# Version: 1.0
+# Author: mbrother
+# Change log:
+
+source /var/mce/script/variable_common
+source ${BASH_DIR}/lang
+[[ -f /var/mce/custom/lang ]] && source /var/mce/custom/lang
+
+# Update mce
+update_mce(){
+    echo -e " ${GREEN}${LANG_UPDATE_SERVICE1}${REMOVE}"
+    sleep 2
+    HOST="files.buildmce.com"
+    if ping -c 1 -w 1 ${HOST} > /dev/null
+    then
+        curl -o ${BASH_DIR}/md5 https://${HOST}/lemp/md5
+        for i in $(cat ${BASH_DIR}/md5 | cut -d":" -f3)
+        do
+            if [ ! -f ${BASH_DIR}/${i} ]
+            then
+                curl -o ${BASH_DIR}/$i https://${HOST}/lemp/${i}
+                chmod 755 ${BASH_DIR}/${i}
+            else
+                MD5_OLD=`md5sum ${BASH_DIR}/$i | awk '{print $1}'`
+                MD5_NEW=`cat ${BASH_DIR}/md5 | grep -w "${i}" | cut -d":" -f1`
+                if [ "${MD5_OLD}" != "${MD5_NEW}" ]
+                then
+                    curl -o ${BASH_DIR}/$i https://${HOST}/lemp/${i}
+                    chmod 755 ${BASH_DIR}/${i}
+                fi
+            fi
+        done
+        rm -f ${BASH_DIR}/md5
+        echo -e "${GREEN}${LANG_UPDATE_SERVICE2}${REMOVE}"
+    else
+        echo -e "${RED}${LANG_UPDATE_SERVICE3} ${HOST}. ${LANG_UPDATE_SERVICE4}${REMOVE}"
+    fi
+}
+
+# Update system
+update_system(){
+    echo -e " ${GREEN}${LANG_UPDATE_SERVICE5}${REMOVE}"
+    sleep 2
+    yum -y update
+    echo -e "${GREEN}${LANG_UPDATE_SERVICE6}${REMOVE}"
+}
+
+# Check PHP update
+check_php_update(){
+    false
+    echo -e " ${GREEN}${LANG_UPDATE_SERVICE36} $1...${REMOVE}"
+    PHP1=`echo $1 | sed 's/\.//'`
+    if [ "${PHP1}" == "${MAIN_PHP1}" ]
+    then
+        CHECK_PHP_UPDATE=`yum --enablerepo=remi-php${PHP1} check-update php | tail -1 | grep -c $1`
+    else
+        CHECK_PHP_UPDATE=`yum --enablerepo=remi-php${PHP1} check-update php${PHP1}-php | tail -1 | grep -c ${1}`
+    fi
+    if [ ${CHECK_PHP_UPDATE} -eq 0 ]
+    then
+        echo -e "${RED}${LANG_UPDATE_SERVICE37}${REMOVE}"
+        return 1
+    fi
+}
+
+# Run update php
+run_update_php(){
+    if [ $? -eq 0 ]
+    then
+        echo -e " ${GREEN}${LANG_UPDATE_SERVICE38} $1...${REMOVE}"
+        sleep 2
+        PHP12=`echo $1 | sed 's/\.//'`
+        if [ "${PHP12}" == "${MAIN_PHP1}" ]
+        then
+            PHP_OLD=`rpm -qa | grep "php-${1}" | sed "s/php-//; s/.el{OS_VER}.remi.${OS_ARCH}//"`
+            yum -y --enablerepo=remi-php${PHP12} update php php-fpm php-devel php-curl php-exif php-fileinfo php-gd php-hash php-intl php-imap php-json php-mbstring php-mcrypt php-mysqlnd php-soap php-xml php-simplexml php-xmlrpc php-xsl php-zip php-zlib php-session php-filter
+            PHP_NEW=`rpm -qa | grep "php-${1}" | sed "s/php-//; s/.el{OS_VER}.remi.${OS_ARCH}//"`
+            if [ "${PHP_NEW}" != "${PHP_OLD}" ]
+            then
+                echo -e " ${GREEN}${LANG_UPDATE_SERVICE39} $1 ${LANG_UPDATE_SERVICE40}${REMOVE}"
+            else
+                echo -e "${RED}${LANG_UPDATE_SERVICE41} $1! ${LANG_UPDATE_SERVICE42}${REMOVE}"
+            fi
+        else
+            PHP_OLD=`rpm -qa | grep "php-${1}" | sed "s/php-//; s/.el{OS_VER}.remi.${OS_ARCH}//"`
+            yum -y --enablerepo=remi-php${PHP12} update php${PHP12}-php php${PHP12}-php-fpm php${PHP12}-php-devel php${PHP12}-php-curl php${PHP12}-php-exif php${PHP12}-php-fileinfo php${PHP12}-php-gd php${PHP12}-php-hash php${PHP12}-php-intl php${PHP12}-php-imap php${PHP12}-php-json php${PHP12}-php-mbstring php${PHP12}-php-mcrypt php${PHP12}-php-mysqlnd php${PHP12}-php-soap php${PHP12}-php-xml php${PHP12}-php-simplexml php${PHP12}-php-xmlrpc php${PHP12}-php-xsl php${PHP12}-php-zip php${PHP12}-php-zlib php${PHP12}-php-session php${PHP12}-php-filter
+            PHP_NEW=`rpm -qa | grep "php-${1}" | sed "s/php-//; s/.el{OS_VER}.remi.${OS_ARCH}//"`
+            if [ "${PHP_NEW}" != "${PHP_OLD}" ]
+            then
+                echo -e " ${GREEN}${LANG_UPDATE_SERVICE39} $1 ${LANG_UPDATE_SERVICE40}${REMOVE}"
+            else
+                echo -e "${RED}${LANG_UPDATE_SERVICE41} $1! ${LANG_UPDATE_SERVICE42}${REMOVE}"
+            fi
+        fi
+    fi
+}
+
+# Update php
+update_php(){
+    command -v php >/dev/null 2>&1 && MAIN_PHP=`php -v | head -1 | cut -d" " -f2 | cut -d"." -f1,2`
+    VAR_PHP=1
+    rm -f /tmp/update_php
+
+    for i in ${List_PHP[*]}
+    do
+        PHP_VER1=`echo ${i} | sed 's/\.//'`
+        if [ "${i}" != ${MAIN_PHP} ]
+        then
+            CHECK_PHP=`command -v php${PHP_VER1} | wc -l`
+            if [ ${CHECK_PHP} -eq 1 ]
+            then
+                echo " ${VAR_PHP}. ${i}" >> /tmp/update_php
+                VAR_PHP=$[ ${VAR_PHP} + 1 ]
+            fi
+        else
+            PHP_VER1=`echo ${MAIN_PHP} `
+            echo " ${VAR_PHP}. ${i}" >> /tmp/update_php
+            VAR_PHP=$[ ${VAR_PHP} + 1 ]
+        fi
+    done
+
+    PHP_COUNT=`cat /tmp/update_php | wc -l`
+
+    if [ ${PHP_COUNT} -eq 0 ]
+    then
+        echo -e "${RED}${LANG_UPDATE_SERVICE7}${REMOVE}"
+        exit
+    fi
+
+    MAIN_PHP1=`echo ${MAIN_PHP} | sed 's/\.//'`
+    if [ ${PHP_COUNT} -eq 1 ]
+    then
+        check_php_update ${MAIN_PHP}
+        run_update_php ${MAIN_PHP}
+    else
+        echo " ${LANG_UPDATE_SERVICE10}"
+        cat /tmp/update_php
+        echo " ${LANG_UPDATE_SERVICE11}"
+        false
+        while [ $? -eq 1 ]
+        do
+            read -p " ${LANG_UPDATE_SERVICE12} " CHOICE
+            if [ "${CHOICE}" == "All" ]
+            then
+                true
+            else
+                ${BASH_DIR}/check_value number "${CHOICE}" "${PHP_COUNT}"
+                if [ $? -eq 1 ]
+                then
+                    echo -e "${RED}${LANG_UPDATE_SERVICE13} ${PHP_COUNT}!${REMOVE}"
+                    false
+                fi
+            fi
+        done
+        if [ "${CHOICE}" == "All" ]
+        then
+            for j in $(cat /tmp/update_php | awk '{print $2}')
+            do
+                check_php_update ${j}
+                run_update_php ${j}
+            done
+        else
+            PHP3=`cat /tmp/update_php | grep "${CHOICE}"". " | awk '{print $2}'`
+            check_php_update ${PHP3}
+            run_update_php ${PHP3}
+        fi
+    fi
+    rm -f /tmp/update_php
+}
+
+# Update nginx
+update_nginx(){
+    echo -e " ${GREEN}${LANG_UPDATE_SERVICE43}${REMOVE}"
+    CHECK_NGINX_UPDATE=`yum check-update nginx | tail -1 | grep -c nginx`
+    if [ ${CHECK_NGINX_UPDATE} -eq 0 ]
+    then
+        echo -e "${RED}${LANG_UPDATE_SERVICE44}${REMOVE}"
+    else
+        NGINX_OLD=`nginx -v 2>&1 | awk '{print $3}' | cut -d"/" -f2`
+        echo -e " ${GREEN}${LANG_UPDATE_SERVICE15}${REMOVE}"
+        sleep 2
+        yum -y update nginx
+        NGINX_NEW=`nginx -v 2>&1 | awk '{print $3}' | cut -d"/" -f2`
+        if [ "${NGINX_OLD}" != "${NGINX_NEW}" ]
+        then
+            echo -e "${GREEN}${LANG_UPDATE_SERVICE16}${REMOVE}"
+        else
+            echo -e "${RED}${LANG_UPDATE_SERVICE45}${REMOVE}"
+        fi
+    fi
+}
+
+# Update phpMyAdmin
+update_php_myadmin(){
+    MAIN_PHP1=`php -v | head -1 | cut -d" " -f2 | cut -d"." -f1,2`
+    if [ "${MAIN_PHP1}" == "5.4" ]
+    then
+        echo -e "${RED}${LANG_UPDATE_SERVICE17}${REMOVE}}"
+    else
+        DEFAULT_DIR_WEB="/usr/share/nginx/html"
+        if [ -f /usr/share/nginx/html/phpmyadmin/README ]
+        then
+            PHPMYADMIN_VER_OLD=`cat /usr/share/nginx/html/phpmyadmin/README | grep Version | cut -d" " -f2`
+        else
+            PHPMYADMIN_VER_OLD=""
+        fi
+        echo -e " ${GREEN}${LANG_UPDATE_SERVICE46}${REMOVE}"
+        wget -qO ${HOME}/phpmyadmin.tar.gz https://www.phpmyadmin.net/downloads/phpMyAdmin-latest-all-languages.tar.gz
+        cd ${HOME}
+        tar -xf ${HOME}/phpmyadmin.tar.gz
+        rm -f ${HOME}/phpmyadmin.tar.gz
+        PHPMYADMIN_VER_NEW=`ls -1 ${HOME} | grep phpMyAdmin | cut -d"-" -f2`
+        if [ "${PHPMYADMIN_VER_OLD}" == "${PHPMYADMIN_VER_NEW}" ]
+        then
+            rm -rf ${HOME}/phpMyAdmin-${PHPMYADMIN_VER_OLD}-all-languages
+            echo -e "${RED}${LANG_UPDATE_SERVICE18}${REMOVE}"
+        else
+            echo -e " ${GREEN}${LANG_UPDATE_SERVICE19}${REMOVE}"
+            sleep 2
+            mv ${HOME}/phpMyAdmin-${PHPMYADMIN_VER_NEW}-all-languages ${HOME}/phpmyadmin
+            if [ -f ${DEFAULT_DIR_WEB}/phpmyadmin/config.inc.php ]
+            then
+                cp ${DEFAULT_DIR_WEB}/phpmyadmin/config.inc.php ${HOME}/phpmyadmin/config.inc.php
+            else
+                cat > "${HOME}/phpmyadmin/config.inc.php" <<EOCONFIGINC
+<?php
+\$cfg['blowfish_secret'] = '${BLOWFISH_SECRET}';
+\$i = 0;
+\$i++;
+\$cfg['Servers'][\$i]['auth_type'] = 'cookie';
+\$cfg['Servers'][\$i]['host'] = 'localhost';
+\$cfg['Servers'][\$i]['connect_type'] = 'tcp';
+\$cfg['Servers'][\$i]['compress'] = false;
+\$cfg['Servers'][\$i]['AllowNoPassword'] = false;
+\$cfg['UploadDir'] = '';
+\$cfg['SaveDir'] = '';
+\$cfg['PmaNoRelation_DisableWarning'] = true;
+\$cfg['VersionCheck'] = false;
+EOCONFIGINC
+
+            fi
+            rm -rf ${DEFAULT_DIR_WEB}/phpmyadmin
+            mv ${HOME}/phpmyadmin/ ${DEFAULT_DIR_WEB}
+            echo -e " ${GREEN}${LANG_UPDATE_SERVICE20}${REMOVE}"
+        fi
+    fi
+}
+
+# Update firewall(csf)
+update_csf(){
+    echo -e " ${GREEN}${LANG_UPDATE_SERVICE47}${REMOVE}"
+    wget -qO /root/version.txt https://download.configserver.com/csf/version.txt
+    CSF_NEW=`cat /root/version.txt`
+    CSF_OLD=`csf -v | cut -d" " -f2 | sed 's/v//'`
+    if [ -z ${CSF_NEW} ]
+    then
+        echo -e "${RED}${LANG_UPDATE_SERVICE31}${REMOVE}"
+    elif [ "${CSF_NEW}" == "${CSF_OLD}" ]
+    then
+        echo -e "${RED}${LANG_UPDATE_SERVICE32}${REMOVE}"
+    else
+        echo -e " ${GREEN}${LANG_UPDATE_SERVICE30}${REMOVE}"
+        sleep 2
+        csf -u
+        CSF_NEW2=`csf -v | cut -d" " -f2 | sed 's/v//'`
+        if [ "${CSF_NEW2}" != "${CSF_OLD}" ]
+        then
+            echo -e " ${GREEN}${LANG_UPDATE_SERVICE33}${REMOVE}"
+        else
+            echo -e "${RED}${LANG_UPDATE_SERVICE34}${REMOVE}"
+        fi
+    fi
+    rm -f /root/version.txt
+}
+
+echo " ${LANG_UPDATE_SERVICE21}"
+echo " ${LANG_UPDATE_SERVICE22}"
+echo " ${LANG_UPDATE_SERVICE23}"
+echo " ${LANG_UPDATE_SERVICE24}"
+echo " ${LANG_UPDATE_SERVICE25}"
+echo " ${LANG_UPDATE_SERVICE26}"
+echo " ${LANG_UPDATE_SERVICE35}"
+echo " ${LANG_UPDATE_SERVICE27}"
+false
+while [ $? -eq 1 ]
+do
+    read -p " ${LANG_UPDATE_SERVICE28} " CHOICE
+    ${BASH_DIR}/check_value number "${CHOICE}" 6
+    if [ $? -eq 1 ]
+    then
+        echo -e "${RED} ${LANG_UPDATE_SERVICE29} 6${REMOVE}"
+        false
+    fi
+done
+
+case ${CHOICE} in
+    1) update_mce;;
+    2) update_system;;
+    3) update_php;;
+    4) update_nginx;;
+    5) update_php_myadmin;;
+    6) update_csf;;
+esac

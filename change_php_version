@@ -1,0 +1,185 @@
+#!/bin/bash
+# MCE_LEMP change php version for an account
+# Version: 1.0
+# Author: mbrother
+# Change log:
+
+source /var/mce/script/variable_common
+source ${BASH_DIR}/lang
+[[ -f /var/mce/custom/lang ]] && source /var/mce/custom/lang
+
+# Print space
+printf_s(){
+    if [ $1 -le 0 ]
+    then
+        echo ""
+    else
+        printf '%0.s ' $(seq 1 $1)
+    fi
+}
+
+# Print ─
+printf_c(){
+    if [ $1 -le 0 ]
+    then
+        echo ""
+    else
+        printf '%0.s─' $(seq 1 $1)
+    fi
+}
+
+# Print domains
+print_domain(){
+    echo    " ┌─`printf_c ${#LANG_CHANGE_PHP1}`─┐"
+    echo -e " │ ${GREEN}${LANG_CHANGE_PHP1}${REMOVE} │"
+    echo    " └─`printf_c ${#LANG_CHANGE_PHP1}`─┘"
+    ls -1 ${USER_DIR} > /tmp/all_users
+    VAR_TMP=1
+    rm -f /tmp/all_domains
+    for i in $(cat /tmp/all_users)
+    do
+        echo " ${VAR_TMP}. ${i} `cat ${USER_DIR}/${i}/domain`" >> /tmp/all_domains
+        VAR_TMP=$[ ${VAR_TMP} + 1 ]
+    done
+    cat /tmp/all_domains | awk '{print $1 " " $3}'
+}
+
+# Check PHP version
+check_php(){
+    echo -e "${LANG_CHANGE_PHP2} ${DOMAIN}: ${GREEN}${PHP_OLD}${REMOVE}"
+    echo "${LANG_CHANGE_PHP3} ${List_PHP[*]}"
+    false
+    while [ $? -eq 1 ]
+    do
+        read -p "${LANG_CHANGE_PHP4} " PHP_NEW
+        ${BASH_DIR}/check_value list "${PHP_NEW}" "${List_PHP[*]}"
+        if [ $? -eq 1 ]
+        then
+            echo -e "${RED}${LANG_CHANGE_PHP17} '${PHP_NEW}'. ${LANG_CHANGE_PHP5}${REMOVE}"
+            false
+        fi
+    done
+    if [ "${PHP_NEW}" == "${PHP_OLD}" ]
+    then
+        echo -e "${RED}${LANG_CHANGE_PHP6} ${DOMAIN} ${LANG_CHANGE_PHP7} ${PHP_OLD}, ${LANG_CHANGE_PHP8}${REMOVE}"
+        check_php
+    fi
+}
+
+# Change PHP version
+change_php(){
+    REMI_DIR="/etc/opt/remi"
+    PHP_OLD1=`echo ${PHP_OLD} | sed 's/\.//'`
+    PHP_NEW1=`echo ${PHP_NEW} | sed 's/\.//'`
+    PHP_MAIN1=`echo ${PHP_MAIN} | sed 's/\.//'`
+    CHECK_PHP=`command -v php${PHP_NEW1} | wc -l`
+    if [[ ${CHECK_PHP} -eq 0 ]] && [[ "${PHP_NEW}" != "${PHP_MAIN}" ]]
+    then
+        echo -e "${GREEN}PHP ${PHP_NEW} ${LANG_CHANGE_PHP10}${REMOVE}"
+        sleep 2
+        yum -y --enablerepo=remi-php${PHP_NEW1} install php${PHP_NEW1}-php php${PHP_NEW1}-php-fpm php${PHP_NEW1}-php-devel php${PHP_NEW1}-php-curl php${PHP_NEW1}-php-exif php${PHP_NEW1}-php-fileinfo php${PHP_NEW1}-php-gd php${PHP_NEW1}-php-hash php${PHP_NEW1}-php-intl php${PHP_NEW1}-php-imap php${PHP_NEW1}-php-json php${PHP_NEW1}-php-mbstring php${PHP_NEW1}-php-mcrypt php${PHP_NEW1}-php-mysqlnd php${PHP_NEW1}-php-soap php${PHP_NEW1}-php-xml php${PHP_NEW1}-php-simplexml php${PHP_NEW1}-php-xmlrpc php${PHP_NEW1}-php-xsl php${PHP_NEW1}-php-zip php${PHP_NEW1}-php-zlib php${PHP_NEW1}-php-session php${PHP_NEW1}-php-filter
+        if [[ "${PHP_NEW1}" == "54" ]] || [[ "${PHP_NEW1}" == "55" ]]
+        then
+            [ ! -d ${REMI_DIR} ] && mkdir ${REMI_DIR}
+            ln -s /opt/remi/php${PHP_NEW1}/root/etc ${REMI_DIR}/php${PHP_NEW1}
+        fi
+        mv ${REMI_DIR}/php${PHP_NEW1}/php-fpm.d/www.conf ${REMI_DIR}/php${PHP_NEW1}/php-fpm.d/www.conf.bak
+        cp /etc/php-fpm.d/www.conf ${REMI_DIR}/php${PHP_NEW1}/php-fpm.d/www.conf
+        sed -i "s/\/var\/run\/phpmyadmin/\/var\/run\/phpmyadmin\.php${PHP_NEW1}/g" ${REMI_DIR}/php${PHP_NEW1}/php-fpm.d/www.conf
+    fi
+    echo -e " ${GREEN}${LANG_CHANGE_PHP18}${REMOVE}"
+    sleep 2
+    if [ ${PHP_OLD1} -eq ${PHP_MAIN1} ]
+    then
+        mv /etc/php-fpm.d/${DOMAIN}.conf ${REMI_DIR}/php${PHP_NEW1}/php-fpm.d/${DOMAIN}.conf
+        sed -i "s/\/var\/run\/m1/\/var\/run\/m1\.php${PHP_NEW1}/g" ${REMI_DIR}/php${PHP_NEW1}/php-fpm.d/${DOMAIN}.conf
+        sed -i "s/\/var\/run\/m1/\/var\/run\/m1\.php${PHP_NEW1}/g" /etc/nginx/conf.d/${DOMAIN}.conf
+        PHP_FPM_OLD="php-fpm"
+        PHP_FPM_NEW="php${PHP_NEW1}-php-fpm"
+    elif  [ ${PHP_NEW1} -eq ${PHP_MAIN1} ]
+    then
+        mv ${REMI_DIR}/php${PHP_OLD1}/php-fpm.d/${DOMAIN}.conf /etc/php-fpm.d/${DOMAIN}.conf
+        sed -i "s/\/var\/run\/m1\.php${PHP_OLD1}/\/var\/run\/m1/g" /etc/php-fpm.d/${DOMAIN}.conf
+        sed -i "s/\/var\/run\/m1\.php${PHP_OLD1}/\/var\/run\/m1/g" /etc/nginx/conf.d/${DOMAIN}.conf
+        PHP_FPM_OLD="php${PHP_OLD1}-php-fpm"
+        PHP_FPM_NEW="php-fpm"
+    else
+        mv ${REMI_DIR}/php${PHP_OLD1}/php-fpm.d/${DOMAIN}.conf ${REMI_DIR}/php${PHP_NEW1}/php-fpm.d/${DOMAIN}.conf
+        sed -i "s/\/var\/run\/m1\.php${PHP_OLD1}/\/var\/run\/m1\.php${PHP_NEW1}/g" ${REMI_DIR}/php${PHP_NEW1}/php-fpm.d/${DOMAIN}.conf
+        sed -i "s/\/var\/run\/m1\.php${PHP_OLD1}/\/var\/run\/m1\.php${PHP_NEW1}/g" /etc/nginx/conf.d/${DOMAIN}.conf
+        PHP_FPM_OLD="php${PHP_OLD1}-php-fpm"
+        PHP_FPM_NEW="php${PHP_NEW1}-php-fpm"
+    fi
+    echo ${PHP_NEW} > ${USER_DIR}/${USER}/php
+}
+
+if [ "${OS_ARCH}" == "i686" ]
+then
+    echo -e "${RED}${LANG_CHANGE_PHP19}${REMOVE}"
+    exit
+fi
+
+if [ -z "$(ls ${USER_DIR})" ]
+then
+    echo -e "${RED}${LANG_CHANGE_PHP11}${REMOVE}"
+    exit
+fi
+
+if [ $(ls ${USER_DIR} | wc -l) -ge 1 ]
+then
+    if [ -z "$(ls ${USER_DIR}/* | grep domain)" ]
+    then
+        echo -e "${RED}${LANG_CHANGE_PHP11}${REMOVE}"
+        exit
+    else
+        DOMAIN_COUNT=`ls ${USER_DIR}/*/ | grep domain | wc -l`
+        print_domain
+        false
+        while [ $? -eq 1 ]
+        do
+            read -p  "${LANG_CHANGE_PHP12} " CHOICE
+            ${BASH_DIR}/check_value number "${CHOICE}" "${DOMAIN_COUNT}"
+            if [ $? -eq 1 ]
+            then
+                if [ ${DOMAIN_COUNT} -eq 1 ]
+                then
+                    echo -e "${RED}${LANG_CHANGE_PHP16}${REMOVE}"
+                    false
+                else
+                    echo -e "${RED}${LANG_CHANGE_PHP13} ${DOMAIN_COUNT}!${REMOVE}"
+                    false
+                fi
+            fi
+        done
+        USER=`cat /tmp/all_domains | awk -v CHOICE2="${CHOICE}""."  '{if (CHOICE2 == $1) print $2}'`
+        DOMAIN=`cat /tmp/all_domains | awk -v CHOICE2="${CHOICE}""."  '{if (CHOICE2 == $1) print $3}'`
+        PHP_MAIN=`php -v | head -1 | cut -d" " -f2 | cut -d"." -f1,2`
+        if [ ! -f ${USER_DIR}/${USER}/php ]
+        then
+            PHP_OLD=${PHP_MAIN}
+            echo ${PHP_MAIN} > ${USER_DIR}/${USER}/php
+        else
+            PHP_OLD=`cat ${USER_DIR}/${USER}/php`
+        fi
+        check_php
+        change_php
+    fi
+fi
+
+# Remove cache
+[ -d /etc/nginx/cache/${USER} ] && rm -rf /etc/nginx/cache/${USER}/*
+
+# Restart services
+echo -e " ${GREEN}${LANG_CHANGE_PHP14}${REMOVE}"
+if [ -f /bin/systemctl ]
+then
+    systemctl restart nginx
+    systemctl restart ${PHP_FPM_OLD}
+    systemctl restart ${PHP_FPM_NEW}
+else
+    service nginx restart
+    service ${PHP_FPM_OLD} restart
+    service ${PHP_FPM_NEW} restart
+fi
+
+echo -e "${GREEN}${LANG_CHANGE_PHP15} ${DOMAIN} ${LANG_CHANGE_PHP7} ${PHP_NEW}${REMOVE}"

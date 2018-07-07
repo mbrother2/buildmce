@@ -1,0 +1,138 @@
+#!/bin/bash
+# MCE_LEMP change domain for an account
+# Version: 1.0
+# Author: mbrother
+# Change log:
+
+source /var/mce/script/variable_common
+source ${BASH_DIR}/lang
+[[ -f /var/mce/custom/lang ]] && source /var/mce/custom/lang
+
+# Print ─
+printf_c(){
+    if [ $1 -le 0 ]
+    then
+        echo ""
+    else
+        printf '%0.s─' $(seq 1 $1)
+    fi
+}
+
+# Print domains
+print_domain(){
+    echo    " ┌─`printf_c ${#LANG_CHANGE_DOMAIN1}`─┐"
+    echo -e " │ ${GREEN}${LANG_CHANGE_DOMAIN1}${REMOVE} │"
+    echo    " └─`printf_c ${#LANG_CHANGE_DOMAIN1}`─┘"
+    ls -1 ${USER_DIR} > /tmp/all_users
+    VAR_TMP=1
+    rm -f /tmp/all_domains
+    for i in $(cat /tmp/all_users)
+    do
+        echo " ${VAR_TMP}. ${i} `cat $USER_DIR/${i}/domain`" >> /tmp/all_domains
+        VAR_TMP=$[ ${VAR_TMP} + 1 ]
+    done
+    cat /tmp/all_domains | awk '{print $1 " " $3}'
+}
+
+# Check domain
+check_domain(){
+    false
+    while [ $? -eq 1 ]
+    do
+        read -p " ${LANG_CHANGE_DOMAIN3} " NEW_DOMAIN
+        NEW_DOMAIN=`echo ${NEW_DOMAIN} | tr '[:upper:]' '[:lower:]'`
+        echo ${NEW_DOMAIN} | grep -q "\."
+        if [ $? -eq 0 ]
+        then
+            ${BASH_DIR}/check_value domain "${NEW_DOMAIN}"
+            if [ $? -eq 1 ]
+            then
+                echo -e "${RED}${LANG_CHANGE_DOMAIN4}${REMOVE}"
+                false
+            fi
+        else
+            echo -e "${RED}${LANG_CHANGE_DOMAIN4}${REMOVE}"
+            false
+        fi
+    done
+    if [ ${#NEW_DOMAIN} -gt 253 ]
+    then
+        echo -e "${RED}${LANG_CHANGE_DOMAIN12}${REMOVE}"
+        check_domain
+    fi
+    CHECK_DOMAIN=`cat ${USER_DIR}/*/domain | grep -cx ${NEW_DOMAIN}`
+    if [ ${CHECK_DOMAIN} -eq 1 ]
+    then
+        echo -e "${RED}${LANG_CHANGE_DOMAIN5} ${NEW_DOMAIN} ${LANG_CHANGE_DOMAIN6}${REMOVE}"
+        check_domain
+    fi
+}
+
+if [ -z "$(ls ${USER_DIR})" ]
+then
+    echo -e "${RED}${LANG_CHANGE_DOMAIN7}${REMOVE}"
+    exit
+fi
+
+if [ $(ls ${USER_DIR} | wc -l) -ge 1 ]
+then
+    if [ -z "$(ls ${USER_DIR}/* | grep domain)" ]
+    then
+        echo -e "${RED}${LANG_CHANGE_DOMAIN7}${REMOVE}"
+        exit
+    else
+        print_domain
+        false
+        while [ $? -eq 1 ]
+        do
+            DOMAIN_COUNT=`ls ${USER_DIR}/*/ | grep domain | wc -l`
+            read -p  "${LANG_CHANGE_DOMAIN8} " CHOICE
+            ${BASH_DIR}/check_value number "${CHOICE}" "${DOMAIN_COUNT}"
+            if [ $? -eq 1 ]
+            then
+                if [ ${DOMAIN_COUNT} -eq 1 ]
+                then
+                    echo -e "${RED}${LANG_CHANGE_DOMAIN11}${REMOVE}"
+                    false
+                else
+                    echo -e "${RED}${LANG_CHANGE_DOMAIN9} ${DOMAIN_COUNT}!${REMOVE}"
+                    false
+                fi
+            fi
+        done
+        USER=`cat /tmp/all_domains | awk -v CHOICE2="${CHOICE}""."  '{if (CHOICE2 == $1) print $2}'`
+        OLD_DOMAIN=`cat /tmp/all_domains | awk -v CHOICE2="${CHOICE}""."  '{if (CHOICE2 == $1) print $3}'`
+        echo "${LANG_CHANGE_DOMAIN2} ${OLD_DOMAIN} -> ?"
+        ${BASH_DIR}/show_info DOMAIN
+        check_domain
+        PHP_MAIN1=`php -v | head -1 | cut -d" " -f2 | cut -d"." -f1,2 | sed 's/\.//'`
+        PHP_VER1=`cat ${USER_DIR}/"${USER}"/php | sed 's/\.//'`
+        # change php-fpm file config
+        if [ "${PHP_VER1}" == "${PHP_MAIN1}" ]
+        then
+            FPM_DIR="/etc/php-fpm.d"
+                        PHP_FPM="php-fpm"
+        else
+            FPM_DIR="/etc/opt/remi/php${PHP_VER1}/php-fpm.d/"
+            PHP_FPM="php${PHP_VER1}-php-fpm"
+        fi
+        mv ${FPM_DIR}/"${OLD_DOMAIN}".conf ${FPM_DIR}/"${NEW_DOMAIN}".conf
+        # change nginx file config
+        cat ${VHOST_DIR}/"${OLD_DOMAIN}".conf | sed "s/${OLD_DOMAIN}/${NEW_DOMAIN}/g" > ${VHOST_DIR}/"${NEW_DOMAIN}".conf
+        rm -f ${VHOST_DIR}/"${OLD_DOMAIN}".conf
+        # change mbr store
+        sed -i "s/${OLD_DOMAIN}/${NEW_DOMAIN}/g" ${USER_DIR}/${USER}/domain
+        rm -f ${USER_DIR}/${USER}/domain.bak
+        if [ -f /bin/systemctl ]
+        then
+            systemctl reload nginx
+            systemctl reload ${PHP_FPM}
+        else
+            service nginx reload
+            service ${PHP_FPM} reload
+        fi
+        echo -e "${GREEN}${LANG_CHANGE_DOMAIN10} ${OLD_DOMAIN} -> ${NEW_DOMAIN}${REMOVE}"
+    fi
+fi
+rm -f /tmp/all_users
+rm -f /tmp/all_domains

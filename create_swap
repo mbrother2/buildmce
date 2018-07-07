@@ -1,0 +1,112 @@
+#!/bin/bash
+# MCE_LEMP create swap
+# Version: 1.0
+# Author: mbrother
+# Change log:
+
+source /var/mce/script/variable_common
+source ${BASH_DIR}/lang
+[[ -f /var/mce/custom/lang ]] && source /var/mce/custom/lang
+
+check_swap(){
+    echo -e "${GREEN} ${LANG_CREATE_SWAP1}${REMOVE}"
+    CHECK_SWAP=`swapon -s | wc -l`
+    if [ ${CHECK_SWAP} -eq 0 ]
+    then
+        return 1
+    else
+        return 0
+    fi
+}
+
+
+calculator_swap(){
+    echo -e "${GREEN} ${LANG_CREATE_SWAP2}${REMOVE}"
+    sleep 1
+    RAM=`free -m | grep Mem | awk '{print $2}'`
+    if [ ${RAM} -gt 4096 ]
+    then
+        SWAP_SIZE="4194304"
+    else
+        SWAP_SIZE=$((${RAM}*1024))
+    fi
+}
+
+create_swap(){
+    check_swap
+    if [ $? -eq 1 ]
+    then
+        calculator_swap
+        echo -e "${GREEN} ${LANG_CREATE_SWAP3}${REMOVE}"
+        dd if=/dev/zero of=/swapfile bs=1024 count=${SWAP_SIZE}
+        mkswap /swapfile
+        chmod 600 /swapfile
+        swapon /swapfile
+        echo "/swapfile none  swap  sw 0  0" >> /etc/fstab
+        echo "vm.swappiness=10" >> /etc/sysctl.conf
+        echo -e "${GREEN}${LANG_CREATE_SWAP4}${REMOVE}"
+    else
+        echo -e "${RED}${LANG_CREATE_SWAP5}${REMOVE}"
+    fi
+}
+
+disable_swap(){
+    check_swap
+    if [ $? -eq 1 ]
+    then
+        echo -e "${RED}${LANG_CREATE_SWAP6}${REMOVE}"
+    else
+        echo -e "${GREEN} ${LANG_CREATE_SWAP10}${REMOVE}"
+        swapoff -a
+        echo -e "${GREEN}${LANG_CREATE_SWAP11}${REMOVE}"
+    fi
+}
+
+enable_swap(){
+    check_swap
+    if [ $? -eq 1 ]
+    then
+        echo -e "${GREEN} ${LANG_CREATE_SWAP7}${REMOVE}"
+        swapon -a
+        echo -e "${GREEN}${LANG_CREATE_SWAP8}${REMOVE}"
+    else
+        echo -e "${RED}${LANG_CREATE_SWAP22}${REMOVE}"
+    fi
+}
+
+clear_swap(){
+    check_swap
+    if [ $? -eq 1 ]
+    then
+        echo -e "${RED}${LANG_CREATE_SWAP9}${REMOVE}"
+    else
+        echo -e "${GREEN} ${LANG_CREATE_SWAP12}${REMOVE}"
+        swapoff -a && swapon -a
+        echo -e "${GREEN}${LANG_CREATE_SWAP13}${REMOVE}"
+    fi
+}
+
+echo " ${LANG_CREATE_SWAP14}"
+echo " 1. ${LANG_CREATE_SWAP15}"
+echo " 2. ${LANG_CREATE_SWAP16}"
+echo " 3. ${LANG_CREATE_SWAP17}"
+echo " 4. ${LANG_CREATE_SWAP18}"
+echo " ${LANG_CREATE_SWAP19} 1,2,3... -> Enter"
+false
+while [ $? -eq 1 ]
+do
+    read -p " ${LANG_CREATE_SWAP20} " CHOICE
+    ${BASH_DIR}/check_value number "${CHOICE}" 4
+    if [ $? -eq 1 ]
+    then
+        echo -e "${RED} ${LANG_CREATE_SWAP21} 4${REMOVE}"
+        false
+    fi
+done
+
+case ${CHOICE} in
+    1) create_swap;;
+    2) clear_swap;;
+    3) enable_swap;;
+    4) disable_swap;;
+esac

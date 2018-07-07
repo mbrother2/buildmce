@@ -1,0 +1,102 @@
+#!/bin/bash
+# MCE_LEMP backup an account
+# Version: 1.0
+# Author: mbrother
+# Change log:
+
+source /var/mce/script/variable_common
+source ${BASH_DIR}/lang
+[[ -f /var/mce/custom/lang ]] && source /var/mce/custom/lang
+
+# Prepare before backup
+pre_backup(){
+    if [[ ! -d ${USER_DIR} ]] || [[ $(ls -1 ${USER_DIR} | wc -l) -eq 0 ]]
+    then
+        echo -e "${RED}${LANG_BACKUP_HOST1}${REMOVE}"
+        exit
+    fi
+
+    [ ! -d /backup ] && mkdir /backup
+    [ ! -d /tmp/backup ] && mkdir /tmp/backup
+}
+
+# Check user exist
+check_user() {
+    false
+    while [ $? -eq 1 ]
+    do
+        read -p " ${LANG_BACKUP_HOST2} " USER
+        ${BASH_DIR}/check_value name "${USER}"
+        if [ $? -eq 1 ]
+        then
+            echo -e "${RED}${LANG_BACKUP_HOST3}${REMOVE}"
+            false
+        fi
+    done
+    if [ "${USER}" == "All" ]
+    then
+        echo -e " ${GREEN}${LANG_BACKUP_HOST7}${REMOVE}"
+        sh ${BASH_DIR}/backup_full
+        echo -e "${GREEN}${LANG_BACKUP_HOST10} /backup${REMOVE}"
+        exit
+    fi
+    CHECK_USER=`ls -1 ${USER_DIR} | grep -cx ${USER}`
+    if [ ${CHECK_USER} -eq 0 ]
+    then
+        echo -e "${RED}${LANG_BACKUP_HOST4} ${USER} ${LANG_BACKUP_HOST5}${REMOVE}"
+        check_user
+    fi
+}
+
+# Create backup
+create_backup(){
+    BACKUP=""${USER}"_`date '+%d-%m-%Y'`"
+    DOMAIN=`cat ${USER_DIR}/"${USER}"/domain`
+    PHP_MAIN1=`php -v | head -1 | cut -d" " -f2 | cut -d"." -f1,2 | sed 's/\.//'`
+    PHP_VER1=`cat ${USER_DIR}/"${USER}"/php | sed 's/\.//'`
+    mkdir /"${BACKUP}"
+    cd /"${BACKUP}"
+    mkdir mysql homedir conf
+    if [ -f ${USER_DIR}/"${USER}"/db ]
+    then
+        cat ${USER_DIR}/"${USER}"/db | cut -f 1 -d ":" > /tmp/backup/${USER}.txt
+        for i in $(cat /tmp/backup/${USER}.txt)
+        do
+            mysqldump ${i} > /tmp/backup/${i}.sql
+        done
+        mv /tmp/backup/${USER}*.sql /"${BACKUP}"/mysql/
+    fi
+
+    echo -e " ${GREEN}${LANG_BACKUP_HOST6}${REMOVE}"
+    command -v rsync >/dev/null 2>&1 || yum -y install rsync > /dev/null
+    rsync -a ${USER_DIR}/"${USER}"/ /"${BACKUP}"/"${USER}"
+    rsync -a /home/"${USER}"/ /"${BACKUP}"/homedir --exclude logs
+    if [ "${PHP_VER1}" == "${PHP_MAIN1}" ]
+    then
+        FPM_DIR="/etc/php-fpm.d"
+    else
+        FPM_DIR="/etc/opt/remi/php${PHP_VER1}/php-fpm.d"
+    fi
+    cp ${FPM_DIR}/"${DOMAIN}".conf /"${BACKUP}"/conf/php-fpm."${DOMAIN}".conf
+    cp ${VHOST_DIR}/"${DOMAIN}".conf /"${BACKUP}"/conf/nginx."${DOMAIN}".conf
+    chown -R root:root /${BACKUP}
+
+    cd /
+    echo -e " ${GREEN}${LANG_BACKUP_HOST7}${REMOVE}"
+    tar -zcf /backup/"${BACKUP}".tar.gz ${BACKUP}
+
+    rm -rf /tmp/backup/
+    rm -rf /"${BACKUP}"
+}
+
+show_informations(){
+    echo -e " ${LANG_BACKUP_HOST8} ${GREEN}/backup/"${BACKUP}".tar.gz${REMOVE}"
+}
+
+pre_backup
+${BASH_DIR}/show_info USER
+echo ""
+echo -e " ${GREEN}${LANG_BACKUP_HOST9}${REMOVE}"
+check_user
+create_backup
+show_informations

@@ -1,0 +1,198 @@
+#!/bin/bash
+# MCE_LEMP delete an account
+# Version: 1.0
+# Author: mbrother
+# Change log:
+
+source /var/mce/script/variable_common
+source ${BASH_DIR}/lang
+[[ -f /var/mce/custom/lang ]] && source /var/mce/custom/lang
+
+# Check user exist before delete
+pre_delete(){
+    if [[ ! -d ${USER_DIR} ]] || [[ $(ls -1 ${USER_DIR} | wc -l) -eq 0 ]]
+    then
+        echo -e "${RED}${LANG_DETETE_HOST1}${REMOVE}"
+        exit
+    fi
+}
+
+# Check user exsit
+check_user() {
+    false
+    while [ $? -eq 1 ]
+    do
+        read -p " ${LANG_DETETE_HOST2} " USER
+        ${BASH_DIR}/check_value name "${USER}"
+        if [ $? -eq 1 ]
+        then
+            echo -e "${RED}${LANG_DETETE_HOST3}${REMOVE}"
+            false
+        fi
+    done
+    CHECK_USER=`ls -1 ${USER_DIR} | grep -cx ${USER}`
+    if [ ${CHECK_USER} -eq 0 ]
+    then
+        echo -e "${RED}${LANG_DETETE_HOST4} ${USER} ${LANG_DETETE_HOST5}${REMOVE}"
+        check_user
+    fi
+}
+
+# Collect informations
+collect_info(){
+    PHP_MAIN1=`php -v | head -1 | cut -d" " -f2 | cut -d"." -f1,2 | sed 's/\.//'`
+    PHP_VER1=`cat ${USER_DIR}/"${USER}"/php | sed 's/\.//'`
+    if [ "${PHP_VER1}" == "${PHP_MAIN1}" ]
+    then
+        FPM_DIR="/etc/php-fpm.d"
+        PHP_FPM="php-fpm"
+    else
+        FPM_DIR="/etc/opt/remi/php${PHP_VER1}/php-fpm.d"
+        PHP_FPM="php${PHP_VER1}-php-fpm"
+    fi
+}
+
+# Create backup
+create_backup(){
+    # choice
+    echo "${LANG_DETETE_HOST6}"
+    echo " ${LANG_DETETE_HOST7}"
+    echo " ${LANG_DETETE_HOST8}"
+    false
+    while [ $? -eq 1 ]
+    do
+        read -p "${LANG_DETETE_HOST9} " CHOICE
+        ${BASH_DIR}/check_value number "${CHOICE}" 2
+        if [ $? -eq 1 ]
+        then
+            echo -e "${RED}${LANG_DETETE_HOST10}${REMOVE}"
+            false
+        fi
+    done
+
+    # create backup
+    if [ ${CHOICE} -eq 1 ]
+    then
+        [ ! -d /backup ] && mkdir /backup
+        [ ! -d /tmp/backup ] && mkdir /tmp/backup
+        BACKUP="${USER}_`date '+%d-%m-%Y'`"
+        mkdir /"${BACKUP}"
+        cd /"${BACKUP}"
+        mkdir mysql homedir conf
+        if [ -f ${USER_DIR}/"${USER}"/db ]
+        then
+            cat ${USER_DIR}/"${USER}"/db | cut -f 1 -d ":" > /tmp/backup/${USER}.txt
+            for i in $(cat /tmp/backup/${USER}.txt)
+            do
+                mysqldump ${i} > /tmp/backup/${i}.sql
+            done
+            mv /tmp/backup/${USER}*.sql /"${BACKUP}"/mysql/
+        fi
+
+        echo -e " ${GREEN}${LANG_DETETE_HOST11}${REMOVE}"
+        sleep 2
+        command -v rsync >/dev/null 2>&1 || yum -y install rsync > /dev/null
+        rsync -a ${USER_DIR}/"${USER}"/ /"${BACKUP}"/"${USER}"
+        rsync -a /home/"${USER}"/ /"${BACKUP}"/homedir --exclude logs
+        DOMAIN=`cat ${USER_DIR}/"${USER}"/domain`
+        cp ${FPM_DIR}/"${DOMAIN}".conf /"${BACKUP}"/conf/php-fpm."${DOMAIN}".conf
+        cp ${VHOST_DIR}/"${DOMAIN}".conf /"${BACKUP}"/conf/nginx."${DOMAIN}".conf
+        [ -d /home/"${USER}"/ssl ] && cp -R /home/"${USER}"/ssl /"${BACKUP}"/conf/
+        chown -R root:root /${BACKUP}
+
+        cd /
+        echo -e " ${GREEN}${LANG_DETETE_HOST12}${REMOVE}"
+        sleep 2
+        tar -zcf /backup/"${BACKUP}".tar.gz ${BACKUP}
+
+        # remove tmp file
+        rm -rf /tmp/backup/
+        rm -rf /"${BACKUP}"
+    fi
+}
+
+# Delete user
+delete_user(){
+    MYSQL=`which mysql`
+    mkdir /tmp/delete
+
+    # remove home directory
+    cd /home
+    rm -rf ${USER}/
+
+    # remove mailbox file
+    cd /var/spool/mail
+    rm -f ${USER}
+
+    # remove database
+    cat ${USER_DIR}/"${USER}"/db | cut -f 1 -d ":" > /tmp/delete/db.txt
+    for i in $(cat /tmp/delete/db.txt)
+    do
+        ${MYSQL} -uroot -e "DROP DATABASE ${i};"
+    done
+
+    # remove user database
+    cat ${USER_DIR}/"${USER}"/db | cut -f 2 -d ":" > /tmp/delete/userdb.txt
+    for i in $(cat /tmp/delete/userdb.txt)
+    do
+        Q1="SELECT User,Host FROM mysql.user;"
+        Q2="DROP USER '${i}'@'localhost';;"
+        SQL="${Q1}${Q2}"
+        ${MYSQL} -uroot -e "${SQL}" > /dev/null
+    done
+
+    # remove nginx conf
+    DOMAIN=`cat ${USER_DIR}/"${USER}"/domain`
+    cd ${VHOST_DIR}
+    rm -f ${DOMAIN}.conf
+
+    # remove nginx cache folder
+    cd /etc/nginx/cache
+    rm -rf ${USER}
+
+    # remove php-fpm conf
+    cd ${FPM_DIR}
+    rm -f ${DOMAIN}.conf
+
+    # remove folder create by MCE
+    rm -rf ${USER_DIR}/"${USER}"/
+
+    # remove tmp file
+    rm -rf /tmp/delete
+
+    # reload nginx, php-fpm
+    if [ -f /bin/systemctl ]
+    then
+        systemctl reload nginx
+        systemctl reload ${PHP_FPM}
+    else
+        service nginx reload
+        service ${PHP_FPM} reload
+    fi
+
+    # kill all user's processes
+    for i in $(ps --user ${USER} | awk {'print $1'} | grep -v PID)
+    do
+        kill -9 ${i}
+    done
+
+    # remove user
+    userdel ${USER}
+}
+
+# Show information
+show_informations(){
+    if [ ${CHOICE} -eq 1 ]
+    then
+        echo -e "${LANG_DETETE_HOST13} ${GREEN}/backup/"${BACKUP}".tar.gz${REMOVE}"
+    fi
+    echo -e "${GREEN}${LANG_DETETE_HOST14} ${USER} ${LANG_DETETE_HOST15}${REMOVE}"
+}
+
+pre_delete
+${BASH_DIR}/show_info USER
+check_user
+collect_info
+create_backup
+delete_user
+show_informations

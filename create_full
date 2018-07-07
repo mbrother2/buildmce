@@ -1,0 +1,505 @@
+#!/bin/bash
+# MCE_LEMP create full
+# Version: 1.0
+# Author: mbrother
+# Change log:
+
+source /var/mce/script/variable_common
+source ${BASH_DIR}/lang
+[[ -f /var/mce/custom/lang ]] && source /var/mce/custom/lang
+
+# Check root mysql
+check_mysql(){
+    CHECK_MYSQL=`mysql -e "SHOW DATABASES;" | wc -l`
+    if [ ${CHECK_MYSQL} -eq 0 ]
+    then
+        echo ""
+        echo -e "${RED}${LANG_CREATE_HOST32}${REMOVE}"
+        echo -e "${RED}${LANG_CREATE_HOST33}${REMOVE}"
+        exit
+    fi
+}
+
+# Check user
+check_user() {
+    false
+    while [ $? -eq 1 ]
+    do
+        read -p " ${LANG_CREATE_HOST1} " USER
+        USER=`echo ${USER} | tr '[:upper:]' '[:lower:]'`
+        ${BASH_DIR}/check_value name "${USER}"
+        if [ $? -eq 1 ]
+        then
+            echo -e "${RED}${LANG_CREATE_HOST2}${REMOVE}"
+            false
+        fi
+    done
+    if [ ${#USER} -gt 32 ]
+    then
+        echo -e "${RED}${LANG_CREATE_HOST35}${REMOVE}"
+        check_user
+    fi
+    CHECK_USER=`cat /etc/shadow | cut -d":" -f1 | grep -wc ${USER}`
+    if [ ${CHECK_USER} -eq 1 ]
+    then
+        echo -e "${RED}${LANG_CREATE_HOST3} ${USER} ${LANG_CREATE_HOST4}${REMOVE}"
+        check_user
+    fi
+}
+
+# Check database name
+check_database(){
+    false
+    while [ $? -eq 1 ]
+    do
+        read -p " ${LANG_CREATE_HOST5} "${USER}"_" SUFFIX
+        DB_NAME=`echo ${USER}_${SUFFIX} | tr '[:upper:]' '[:lower:]'`
+        ${BASH_DIR}/check_value name "${SUFFIX}"
+        if [ $? -eq 1 ]
+        then
+            echo -e "${RED}${LANG_CREATE_HOST6}${REMOVE}"
+            false
+        fi
+    done
+    if [ ${#DB_NAME} -gt 64 ]
+    then
+        echo -e "${RED}${LANG_CREATE_HOST36}${REMOVE}"
+        check_database
+    fi
+}
+
+# Check user database name
+check_user_database(){
+    false
+    while [ $? -eq 1 ]
+    do
+        read -p " ${LANG_CREATE_HOST7} $DB_NAME: "${USER}"_" SUFFIX2
+        DB_USER=`echo ${USER}_${SUFFIX2} | tr '[:upper:]' '[:lower:]'`
+        ${BASH_DIR}/check_value name "${SUFFIX2}"
+        if [ $? -eq 1 ]
+        then
+            echo -e "${RED}${LANG_CREATE_HOST8}${REMOVE}"
+            false
+        fi
+    done
+    if [ ${#DB_USER} -gt 80 ]
+    then
+        echo -e "${RED}${LANG_CREATE_HOST37}${REMOVE}"
+        check_user_database
+    fi
+}
+
+# Check domain name
+check_domain(){
+    false
+    while [ $? -eq 1 ]
+    do
+        read -p " ${LANG_CREATE_HOST9} " DOMAIN
+        DOMAIN=`echo ${DOMAIN} | tr '[:upper:]' '[:lower:]'`
+        echo ${DOMAIN} | grep -q "\."
+        if [ $? -eq 0 ]
+        then
+            ${BASH_DIR}/check_value domain "${DOMAIN}"
+            if [ $? -eq 1 ]
+            then
+                echo -e "${RED}${LANG_CREATE_HOST10}${REMOVE}"
+                false
+            fi
+        else
+            echo -e "${RED}${LANG_CREATE_HOST10}${REMOVE}"
+            false
+        fi
+    done
+    if [ ${#DOMAIN} -gt 253 ]
+    then
+        echo -e "${RED}${LANG_CREATE_HOST38}${REMOVE}"
+        check_domain
+    fi
+    USER_COUNT=`ls ${USER_DIR} | wc -l`
+    if [[ ${USER_COUNT} -eq 0 ]] || [[ -z "$(ls ${USER_DIR}/* | grep domain)" ]]
+    then
+        :
+    else
+        CHECK_DOMAIN=`cat ${USER_DIR}/*/domain | grep -cx ${DOMAIN}`
+        if [ ${CHECK_DOMAIN} -eq 1 ]
+        then
+            echo -e "${RED}${LANG_CREATE_HOST11} ${DOMAIN} ${LANG_CREATE_HOST12}${REMOVE}"
+            check_domain
+        fi
+    fi
+}
+
+# Create user
+create_user(){
+    USER_PWD=`< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c${1:-12}`
+    useradd ${USER}
+    echo "${USER_PWD}" | passwd ${USER} --stdin >> /dev/null
+    USER_PWD_PWD=`cat /etc/shadow | grep -w "${USER}" | cut -d":" -f2`
+    PUBLIC_HTML="/home/"${USER}"/public_html"
+    mkdir ${PUBLIC_HTML}
+    mkdir /home/"${USER}"/logs
+    chmod 755 -R /home/"${USER}"
+    chown -R ${USER}.${USER} /home/"${USER}"
+}
+
+# Create database and user database
+create_database(){
+    USER_DB_PWD=`< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c${1:-12}`
+    Q1="CREATE DATABASE IF NOT EXISTS ${DB_NAME};"
+    Q2="GRANT ALL ON ${DB_NAME}.* TO '${DB_USER}'@'localhost' IDENTIFIED BY '${USER_DB_PWD}';"
+    Q3="FLUSH PRIVILEGES;"
+    SQL="${Q1}${Q2}${Q3}"
+    ${MYSQL} -uroot -e "${SQL}"
+    USER_DB_PWD_PWD=`mysql -e "SELECT user,password FROM mysql.user;" | grep ${DB_USER} | awk '{print $2}'`
+}
+
+# Create VirtualHost
+create_virtualhost(){
+    if [ ! -d ${VHOST_DIR} ]
+    then
+        mkdir ${VHOST_DIR}
+    fi
+    if [ ! -d /etc/nginx/cache ]
+    then
+        mkdir /etc/nginx/cache
+    fi
+    mkdir /etc/nginx/cache/${USER}
+
+    cat > "${VHOST_DIR}/${DOMAIN}.conf" <<EOnginx_vhost_conf
+upstream $USER {
+        zone tcp_servers 64k;
+        server unix:/var/run/$USER.sock1 weight=100 max_fails=3 fail_timeout=3;
+        server unix:/var/run/$USER.sock2 weight=100 max_fails=3 fail_timeout=3;
+        server unix:/var/run/$USER.sock3 weight=100 max_fails=3 fail_timeout=3;
+        server unix:/var/run/$USER.sock4 weight=100 max_fails=3 fail_timeout=3;
+}
+fastcgi_cache_path /etc/nginx/cache/$USER levels=1:2 keys_zone=$USER:5m max_size=900m inactive=40m;
+server {
+    listen 80;
+
+    root /home/$USER/public_html;
+    index index.php index.html index.htm;
+
+    server_name $DOMAIN www.$DOMAIN;
+
+#       access_log /home/$USER/logs/access.log;
+#       error_log /home/$USER/logs/error.log;
+        access_log /home/$USER/logs/traffic.log traffic;
+
+    location ~* \.(jpg|jpeg|gif|png|css|js|ico|xml)$ {
+        access_log        off;
+        log_not_found     off;
+        expires           360d;
+    }
+
+    if (\$request_method = POST)
+    {
+        set \$no_cache 1;
+    }
+    if (\$query_string != "")
+    {
+        set \$no_cache 1;
+    }
+    if (\$request_uri ~* "/(admin|login|wp-admin|wp-login.php|search|tim-kiem)")
+    {
+        set \$no_cache 1;
+    }
+
+    location / {
+        try_files \$uri \$uri/ /index.php?\$args;
+    }
+
+    location ~ \.php\$ {
+        try_files \$uri =404;
+        fastcgi_split_path_info ^(.+\.php)(/.+)\$;
+        fastcgi_pass $USER;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+        include fastcgi_params;
+
+        fastcgi_cache_key \$scheme\$request_method\$host\$request_uri;
+        fastcgi_cache $USER;
+        fastcgi_cache_valid 200 400 302 40m;
+        fastcgi_cache_methods GET HEAD;
+        fastcgi_cache_use_stale updating error timeout invalid_header http_500 http_503 http_404;
+        fastcgi_cache_bypass \$no_cache;
+        fastcgi_no_cache \$no_cache;
+        add_header X-Cache \$upstream_cache_status;
+        fastcgi_buffering on;
+        fastcgi_buffers 16 16k;
+        fastcgi_buffer_size 16k;
+    }
+}
+EOnginx_vhost_conf
+    if [ ! -d ${FPM_DIR} ]
+    then
+    mkdir ${FPM_DIR}
+    fi
+
+    for i in 1 2 3 4
+    do
+    cat >> "${FPM_DIR}/${DOMAIN}.conf" <<EOfpm_vhost_conf
+[${USER}${i}]
+user = $USER
+group = $USER
+listen = /var/run/$USER.sock$i
+listen.owner = nginx
+listen.group = nginx
+php_admin_value[disable_functions] = passthru,shell_exec,system
+php_admin_flag[allow_url_fopen] = off
+pm = dynamic
+pm.max_children = 50
+pm.start_servers = 5
+pm.min_spare_servers = 2
+pm.max_spare_servers = 5
+chdir = /
+EOfpm_vhost_conf
+    done
+}
+
+# Install WordPress
+wordpress_install(){
+    if [ ! -f ${SOURCE_DIR}/wordpress-$1.tar.gz ]
+    then
+        wget -O ${SOURCE_DIR}/wordpress-$1.tar.gz https://wordpress.org/wordpress-$1.tar.gz
+    fi
+    cd ${SOURCE_DIR}
+    echo -e " ${GREEN}${LANG_CREATE_HOST14}${REMOVE}"
+    tar -xf ${SOURCE_DIR}/wordpress-$1.tar.gz
+    mv ${SOURCE_DIR}/wordpress/* ${PUBLIC_HTML}/
+    rm -rf ${SOURCE_DIR}/wordpress/
+    edit_wpconfig
+    chown -R ${USER}:${USER} /home/${USER}
+}
+
+edit_wpconfig(){
+    cat > "${PUBLIC_HTML}/wp-config.php" <<EOwpconfig
+<?php
+/**
+ * The base configuration for WordPress
+ *
+ * The wp-config.php creation script uses this file during the
+ * installation. You don't have to use the web site, you can
+ * copy this file to "wp-config.php" and fill in the values.
+ *
+ * This file contains the following configurations:
+ *
+ * * MySQL settings
+ * * Secret keys
+ * * Database table prefix
+ * * ABSPATH
+ *
+ * @link https://codex.wordpress.org/Editing_wp-config.php
+ *
+ * @package WordPress
+ */
+
+// ** MySQL settings - You can get this info from your web host ** //
+/** The name of the database for WordPress */
+define('DB_NAME', '$DB_NAME');
+
+/** MySQL database username */
+define('DB_USER', '$DB_USER');
+
+/** MySQL database password */
+define('DB_PASSWORD', '$USER_DB_PWD');
+
+/** MySQL hostname */
+define('DB_HOST', 'localhost');
+
+/** Database Charset to use in creating database tables. */
+define('DB_CHARSET', 'utf8');
+
+/** The Database Collate type. Don't change this if in doubt. */
+define('DB_COLLATE', '');
+
+/**#@+
+ * Authentication Unique Keys and Salts.
+ *
+ * Change these to different unique phrases!
+ * You can generate these using the {@link https://api.wordpress.org/secret-key/1.1/salt/ WordPress.org secret-key service}
+ * You can change these at any point in time to invalidate all existing cookies. This will force all users to have to log in again.
+ *
+ * @since 2.6.0
+ */
+EOwpconfig
+
+    curl https://api.wordpress.org/secret-key/1.1/salt/ 2>/dev/null >> ${PUBLIC_HTML}/wp-config.php
+
+    cat >> "${PUBLIC_HTML}/wp-config.php" <<EOwpconfig
+/**#@-*/
+
+/**
+ * WordPress Database Table prefix.
+ *
+ * You can have multiple installations in one database if you give each
+ * a unique prefix. Only numbers, letters, and underscores please!
+ */
+\$table_prefix  = 'wp_';
+
+/**
+ * For developers: WordPress debugging mode.
+ *
+ * Change this to true to enable the display of notices during development.
+ * It is strongly recommended that plugin and theme developers use WP_DEBUG
+ * in their development environments.
+ *
+ * For information on other constants that can be used for debugging,
+ * visit the Codex.
+ *
+ * @link https://codex.wordpress.org/Debugging_in_WordPress
+ */
+define('WP_DEBUG', false);
+
+/* That's all, stop editing! Happy blogging. */
+
+/** Absolute path to the WordPress directory. */
+if ( !defined('ABSPATH') )
+        define('ABSPATH', dirname(__FILE__) . '/');
+
+/** Sets up WordPress vars and included files. */
+require_once(ABSPATH . 'wp-settings.php');
+EOwpconfig
+}
+
+# Install Joomla
+joomla_install(){
+    if [ ! -e ${SOURCE_DIR}/joomla-$1.tar.gz ]
+    then
+        wget -O ${SOURCE_DIR}/joomla-$1.tar.gz https://github.com/joomla/joomla-cms/releases/download/$1/Joomla_$1-Stable-Full_Package.tar.gz
+    fi
+    cp ${SOURCE_DIR}/joomla-$1.tar.gz ${PUBLIC_HTML}/
+    cd ${PUBLIC_HTML}/
+    echo -e " ${GREEN}${LANG_CREATE_HOST14}${REMOVE}"
+    tar -xf ${PUBLIC_HTML}/joomla-$1.tar.gz
+    chown -R ${USER}:${USER} /home/${USER}
+}
+
+# Install OPenCart
+opencart_install(){
+    if [ ! -e ${SOURCE_DIR}/opencart-$1.tar.gz ]
+    then
+        wget -O ${SOURCE_DIR}/opencart-$1.tar.gz https://github.com/opencart/opencart/archive/$1.tar.gz
+    fi
+    cp ${SOURCE_DIR}/opencart-$1.tar.gz ${PUBLIC_HTML}/
+    cd ${PUBLIC_HTML}/
+    echo -e " ${GREEN}${LANG_CREATE_HOST14}${REMOVE}"
+    tar -xf opencart-$1.tar.gz
+    mv opencart-$1/upload/* ${PUBLIC_HTML}/
+    touch ${PUBLIC_HTML}/config.php
+    touch ${PUBLIC_HTML}/admin/config.php
+    chown -R ${USER}:${USER} /home/${USER}
+}
+
+# Install Source Code
+install_source_code(){
+    WORDPRESS_VER1="latest"
+    WORDPRESS_VER1_LANG="${LANG_CREATE_HOST15}"
+    WORDPRESS_VER2="4.8.5"
+    JOOMLA_VER1="3.8.5"
+    JOOMLA_VER2="2.5.28"
+    OPENCART_VER1="3.0.2.0"
+    OPENCART_VER2="2.3.0.2"
+
+    if [ ! -d ${SOURCE_DIR} ]
+    then
+        mkdir ${SOURCE_DIR}
+    fi
+    PUBLIC_HTML=/home/${USER}/public_html
+    echo -e " ${GREEN}${LANG_CREATE_HOST13}${REMOVE}"
+    sleep 2
+    command -v curl >/dev/null 2>&1 || yum -y install curl > /dev/null
+    command -v wget >/dev/null 2>&1 || yum -y install wget > /dev/null
+
+    echo " ${LANG_CREATE_HOST16}"
+    echo ""
+    echo "1. WordPress ${WORDPRESS_VER1_LANG}"
+    echo "2. WordPress ${WORDPRESS_VER2}"
+    echo "3. Joomla ${JOOMLA_VER1}"
+    echo "4. Joomla ${JOOMLA_VER2}"
+    echo "5. OpenCart ${OPENCART_VER1}"
+    echo "6. OpenCart ${OPENCART_VER2}"
+    echo ""
+    echo "*. ${LANG_CREATE_HOST17}"
+    echo ""
+    read -p " ${LANG_CREATE_HOST18} " CHOICE
+
+    case ${CHOICE} in
+        1) wordpress_install ${WORDPRESS_VER1};;
+        2) wordpress_install ${WORDPRESS_VER2};;
+        3) joomla_install ${JOOMLA_VER1};;
+        4) joomla_install ${JOOMLA_VER2};;
+        5) opencart_install ${OPENCART_VER1};;
+        6) opencart_install ${OPENCART_VER2};;
+        *) echo "${LANG_CREATE_HOST19}";;
+    esac
+}
+
+# Reload services
+reload_services(){
+    echo -e " ${GREEN}${LANG_CREATE_HOST20}${REMOVE}"
+    sleep 2
+    if [ -f /bin/systemctl ]
+    then
+        systemctl reload nginx
+        systemctl reload php-fpm
+    else
+        service nginx reload
+        service php-fpm reload
+    fi
+}
+
+# Write informations to file
+write_informations(){
+    mkdir -p ${USER_DIR}/"${USER}"
+    cat >> "${USER_DIR}/"${USER}"/pwd" <<EOpwd
+${USER_PWD_PWD}
+EOpwd
+
+    cat >> "${USER_DIR}/"${USER}"/db" <<EOdb
+${DB_NAME}:${DB_USER}:${USER_DB_PWD_PWD}
+EOdb
+
+    cat >> "${USER_DIR}/"${USER}"/domain" <<EOdomain
+${DOMAIN}
+EOdomain
+
+    cat >> "${USER_DIR}/"${USER}"/php" <<EOphp
+${PHP_MAIN}
+EOphp
+}
+
+# Show setup information
+show_informations(){
+    echo ""
+    echo -e "${GREEN} ${LANG_CREATE_HOST22}${REMOVE}"
+    echo -e "${GREEN} ${LANG_CREATE_HOST23}${REMOVE}"
+    echo "${LANG_CREATE_HOST24} ${DOMAIN}"
+    echo "---"
+    echo "${LANG_CREATE_HOST25}"
+    echo "${LANG_CREATE_HOST26} ${PUBLIC_HTML}"
+    echo "${LANG_CREATE_HOST27} ${USER}"
+    echo "${LANG_CREATE_HOST28} ${USER_PWD}"
+    echo "---"
+    echo "${LANG_CREATE_HOST29}"
+    echo "${LANG_CREATE_HOST30} ${DB_NAME}"
+    echo "${LANG_CREATE_HOST27} ${DB_USER}"
+    echo "${LANG_CREATE_HOST28} ${USER_DB_PWD}"
+    echo -e "${RED} ${LANG_CREATE_HOST34}${REMOVE}"
+}
+
+check_mysql
+${BASH_DIR}/show_info USER CREATE_FULL
+echo -e " ${GREEN}${LANG_CREATE_HOST31}${REMOVE}"
+check_user
+check_database
+check_user_database
+${BASH_DIR}/show_info DOMAIN CREATE_FULL
+check_domain
+create_user
+create_database
+create_virtualhost
+install_source_code
+reload_services
+write_informations
+show_informations

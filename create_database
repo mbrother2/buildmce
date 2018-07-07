@@ -1,0 +1,167 @@
+#!/bin/bash
+# MCE_LEMP create more databases for an account
+# Version: 1.0
+# Author: mbrother
+# Change log:
+
+source /var/mce/script/variable_common
+source ${BASH_DIR}/lang
+[[ -f /var/mce/custom/lang ]] && source /var/mce/custom/lang
+
+# Print space
+printf_s(){
+    if [ $1 -le 0 ]
+    then
+        echo ""
+    else
+        printf '%0.s ' $(seq 1 $1)
+    fi
+}
+
+# Print ─
+printf_c(){
+    if [ $1 -le 0 ]
+    then
+        echo ""
+    else
+        printf '%0.s─' $(seq 1 $1)
+    fi
+}
+
+
+# Check root mysql
+check_mysql(){
+    CHECK_MYSQL=`mysql -e "SHOW DATABASES;" | wc -l`
+    if [ ${CHECK_MYSQL} -eq 0 ]
+    then
+        echo ""
+        echo -e "${RED}${LANG_MORE_DATABASE1}${REMOVE}"
+        echo -e "${RED}${LANG_MORE_DATABASE2}${REMOVE}"
+        exit
+    fi
+}
+
+# Check user exist
+check_user() {
+    false
+    while [ $? -eq 1 ]
+    do
+        read -p " ${LANG_MORE_DATABASE3} " USER
+        ${BASH_DIR}/check_value name "${USER}"
+        if [ $? -eq 1 ]
+        then
+            echo -e "${RED}${LANG_MORE_DATABASE4}${REMOVE}"
+            false
+        fi
+    done
+    CHECK_USER=`ls -1 ${USER_DIR} | grep -cx ${USER}`
+    if [ ${CHECK_USER} -eq 0 ]
+    then
+        echo -e "${RED}${LANG_MORE_DATABASE5} ${USER} ${LANG_MORE_DATABASE6}${REMOVE}"
+        check_user
+    fi
+}
+
+# Check database name
+check_database(){
+    false
+    while [ $? -eq 1 ]
+    do
+        read -p " ${LANG_MORE_DATABASE8} "${USER}"_" SUFFIX
+        DB_NAME=`echo ${USER}_${SUFFIX} | tr '[:upper:]' '[:lower:]'`
+        ${BASH_DIR}/check_value name "${SUFFIX}"
+        if [ $? -eq 1 ]
+        then
+            echo -e "${RED}${LANG_MORE_DATABASE9}${REMOVE}"
+            false
+        fi
+    done
+    if [ ${#DB_NAME} -gt 64 ]
+    then
+        echo -e "${RED}${LANG_MORE_DATABASE21}${REMOVE}"
+        check_database
+    fi
+    CHECK_DB=`cat ${USER_DIR}/${USER}/db | cut -d ":" -f 1 | grep -cx ${DB_NAME}`
+    if [ ${CHECK_DB} -eq 1 ]
+    then
+        echo -e "${RED}${LANG_MORE_DATABASE10} ${DB_NAME} ${LANG_MORE_DATABASE11}${REMOVE}"
+        check_database
+    fi
+}
+
+# Check user database name
+check_user_database(){
+    false
+    while [ $? -eq 1 ]
+    do
+        read -p " ${LANG_MORE_DATABASE13} ${DB_NAME}: "${USER}"_" SUFFIX2
+        DB_USER=`echo ${USER}_${SUFFIX2} | tr '[:upper:]' '[:lower:]'`
+        ${BASH_DIR}/check_value name "${SUFFIX2}"
+        if [ $? -eq 1 ]
+        then
+            echo -e "${RED}${LANG_MORE_DATABASE9}${REMOVE}"
+            false
+        fi
+    done
+    if [ ${#DB_USER} -gt 80 ]
+    then
+        echo -e "${RED}${LANG_MORE_DATABASE22}${REMOVE}"
+        check_user_database
+    fi
+    CHECK_DB_USER=`cat ${USER_DIR}/${USER}/db | cut -d ":" -f 2 | grep -cx ${DB_USER}`
+    if [ ${CHECK_DB_USER} -eq 1 ]
+    then
+        echo -e "${RED}${LANG_MORE_DATABASE5} ${DB_USER} ${LANG_MORE_DATABASE11}${REMOVE}"
+        check_user_database
+    fi
+}
+
+# Create database
+create_database(){
+    MYSQL=`which mysql`
+    USER_DB_PWD=`< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c${1:-12}`
+    Q1="CREATE DATABASE IF NOT EXISTS ${DB_NAME};"
+    Q2="GRANT ALL ON ${DB_NAME}.* TO '${DB_USER}'@'localhost' IDENTIFIED BY '${USER_DB_PWD}';"
+    Q3="FLUSH PRIVILEGES;"
+    SQL="${Q1}${Q2}${Q3}"
+
+    ${MYSQL} -uroot -e "${SQL}"
+    USER_DB_PWD_PWD=`mysql -e "SELECT user,password FROM mysql.user;" | grep ${DB_USER} | awk '{print $2}'`
+
+    # Write Setup information to file
+    cat >> "${USER_DIR}/"${USER}"/db" <<EOdb
+${DB_NAME}:${DB_USER}:${USER_DB_PWD_PWD}
+EOdb
+}
+
+# Show information
+show_informations(){
+    echo -e "${GREEN} ${LANG_MORE_DATABASE14}${REMOVE}"
+    echo "${LANG_MORE_DATABASE15}"
+    echo "${LANG_MORE_DATABASE16} ${DB_NAME}"
+    echo "${LANG_MORE_DATABASE17} ${DB_USER}"
+    echo "${LANG_MORE_DATABASE18} ${USER_DB_PWD}"
+    echo -e "${RED}${LANG_MORE_DATABASE20}${REMOVE}"
+}
+
+if [[ ! -d ${USER_DIR} ]] || [[ $(ls -1 ${USER_DIR} | wc -l) -eq 0 ]]
+then
+    echo -e "${RED}${LANG_MORE_DATABASE19}${REMOVE}"
+    exit
+fi
+
+check_mysql
+${BASH_DIR}/show_info USER
+check_user
+echo    " ┌─`printf_c ${#LANG_MORE_DATABASE7}`─┐"
+echo -e " │ ${GREEN}${LANG_MORE_DATABASE7}${REMOVE} │"
+echo    " └─`printf_c ${#LANG_MORE_DATABASE7}`─┘"
+cat ${USER_DIR}/${USER}/db | cut -d":" -f1
+check_database
+echo    " ┌─`printf_c ${#LANG_MORE_DATABASE12}`─┐"
+echo -e " │ ${GREEN}${LANG_MORE_DATABASE12}${REMOVE} │"
+echo    " └─`printf_c ${#LANG_MORE_DATABASE12}`─┘"
+cat ${USER_DIR}/${USER}/db | cut -d":" -f2
+check_user_database
+create_database
+show_informations

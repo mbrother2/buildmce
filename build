@@ -1161,7 +1161,7 @@ function download_mce(){
             then
                 true
             else
-                echo -e "{RED}${LANG_DOWNLOAD_MCE7}{REMOVE}"
+                echo -e "${RED}${LANG_DOWNLOAD_MCE7}${REMOVE}"
                 false
             fi
         done

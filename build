@@ -922,6 +922,7 @@ EOFMYCNF
     mv /etc/my.cnf /etc/my.cnf.orig
     cat > "/etc/my.cnf" <<EOFMYSQLCONF
 [mysqld]
+log_error=/var/lib/mysql/${HOSTNAME}.err
 bind-address = 127.0.0.1
 port    = 3306
 socket  = /var/lib/mysql/mysql.sock

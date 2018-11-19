@@ -302,7 +302,7 @@ function check_info(){
     then
         echo -e "${LANG_CHECK_INFO1}"
         sleep 2
-        curl -o ${DIR}/options.conf https://files.buildmce.com/options.conf
+        curl -o ${DIR}/options.conf https://files.buildmce.com/build/options.conf
     fi
     PHP_INST=`      cat ${DIR}/options.conf | grep "php_inst="       | cut -d"=" -f2`
     PHP_VER=`       cat ${DIR}/options.conf | grep "php_main="       | cut -d"=" -f2`

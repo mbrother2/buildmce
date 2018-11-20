@@ -20,5 +20,5 @@ b9c01aac5c801a14d3eb85babb5e498f:1.0:mce
 09161d2b0f41659baaa1ae095f997752:1.0:restore_backup
 aebba3dce0ac439a12b3f07166b4d4bf:1.0:rotate_log
 f42adcdc0f4543bf3d79938eae1f9294:1.0:show_info
-f60ab5224cebef07e6bbd49826fc3a13:1.0:update_service
+f21b9f4ff57827a1fe05e39eb2c65bed:1.0:update_service
 87898cbd10985837d4b1b093081030b7:1.0:variable_common

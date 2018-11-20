@@ -59,7 +59,7 @@ check_domain(){
     DOMAIN=`cat /tmp/all_domains | awk -v CHOICE2="${CHOICE}""."  '{if (CHOICE2 == $1) print $3}'`
     echo -e "${GREEN} ${LANG_CREATE_SSL16}${REMOVE}"
     command -v host >/dev/null 2>&1 || yum -y install bind-utils
-    CHECK_DOMAIN=`host -t A ${DOMAIN} | awk '{print $4}'`
+    CHECK_DOMAIN=`host -t A ${DOMAIN} 1.1.1.1 | tail -n 1 | awk '{print $4}'`
     if [ ${CHECK_DOMAIN} != ${IPADDRESS} ]
     then
         echo -e "${RED}${LANG_CREATE_SSL12}${REMOVE}"

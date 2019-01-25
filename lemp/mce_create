@@ -10,7 +10,7 @@ RED='\e[31m'
 REMOVE='\e[0m'
 BASH_DIR="/var/mce/script"
 USER_DIR="/var/mce/user"
-LINK="https://files.buildmce.com/lemp"
+LINK="https://files.buildmce.com/buildmce/lemp"
 LANG=$1
 
 # Check option in a list

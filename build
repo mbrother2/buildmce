@@ -1170,7 +1170,7 @@ function download_mce(){
         then
             echo -e "${GREEN}${LANG_DOWNLOAD_MCE3}${REMOVE}"
             sleep 2
-            curl -o ${DIR}/mce_create https://files.buildmce.com/lemp/mce_create
+            curl -o ${DIR}/mce_create https://files.buildmce.com/buildmce/lemp/mce_create
             sh ${DIR}/mce_create ${LANG}
             rm -f ${DIR}/mce_create
             mv ${DIR}/build ${BASH_DIR}/build

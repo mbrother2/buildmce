@@ -177,7 +177,7 @@ function multi_lang(){
 
         LANG_START_TIME="${GREEN} Bắt đầu cài đặt...${REMOVE}"
 
-                LANG_UPDATE_SYS="${GREEN} Đang cập nhật hệ thống...${REMOVE}"
+        LANG_UPDATE_SYS="${GREEN} Đang cập nhật hệ thống...${REMOVE}"
 
         LANG_INSTALL_PHP="${GREEN} Đang cài đặt php...${REMOVE}"
 

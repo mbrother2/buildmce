@@ -57,28 +57,16 @@ check_domain(){
     done
     USER=`cat /tmp/all_domains | awk -v CHOICE2="${CHOICE}""."  '{if (CHOICE2 == $1) print $2}'`
     DOMAIN=`cat /tmp/all_domains | awk -v CHOICE2="${CHOICE}""."  '{if (CHOICE2 == $1) print $3}'`
-    echo -e "${GREEN} ${LANG_CREATE_SSL16}${REMOVE}"
-    command -v host >/dev/null 2>&1 || yum -y install bind-utils
-    CHECK_DOMAIN=`host -t A ${DOMAIN} 1.1.1.1 | tail -n 1 | awk '{print $4}'`
-    if [ ${CHECK_DOMAIN} != ${IPADDRESS} ]
-    then
-        echo -e "${RED}${LANG_CREATE_SSL12}${REMOVE}"
-        echo -e "${GREEN}${LANG_CREATE_SSL13}${REMOVE}"
-        echo -e "${LANG_CREATE_SSL14}"
-        echo -e "${GREEN}${LANG_CREATE_SSL18}${REMOVE}"
-        exit
-    fi
 }
 
 # Install Let's Encrypt
 install_letsencrypt(){
-    if [ ! -f /opt/letsencrypt/letsencrypt-auto ]
+    if [ ! -f /usr/bin/certbot ]
     then
         echo -e " ${GREEN}${LANG_CREATE_SSL9}${REMOVE}"
         sleep 2
-        yum -y install git
-        cd /opt
-        git clone https://github.com/letsencrypt/letsencrypt
+        yum -y install epel-release
+        yum -y install certbot
     fi
 }
 
@@ -91,7 +79,7 @@ create_ssl(){
         echo -e "${RED}${LANG_CREATE_SSL17}${REMOVE} ${DOMAIN}!"
         exit
     else
-        /opt/letsencrypt/letsencrypt-auto certonly --webroot -w /home/"${USER}"/public_html/ -d ${DOMAIN} -d www."${DOMAIN}" <<EOletsencrypt
+        /usr/bin/certbot certonly --webroot -w /home/"${USER}"/public_html/ -d ${DOMAIN} <<EOletsencrypt
 admin@${DOMAIN}
 A
 N
@@ -183,7 +171,7 @@ EOvirtual_host
 auto_renew_ssl(){
     if [ ! -f /var/spool/cron/root ]
     then
-        echo "0 2 * * * /opt/letsencrypt/letsencrypt-auto renew" >> /var/spool/cron/root
+        echo "0 2 * * * /usr/bin/certbot renew" >> /var/spool/cron/root
         echo "15 2 * * * /sbin/service nginx reload" >> /var/spool/cron/root
         if [ -f /bin/systemctl ]
         then
@@ -193,12 +181,12 @@ auto_renew_ssl(){
         fi
         echo "${LANG_CREATE_SSL7}"
     else
-        CHECK_CRON=`cat /var/spool/cron/root | grep "letsencrypt-auto" | wc -l`
+        CHECK_CRON=`cat /var/spool/cron/root | grep "certbot renew" | wc -l`
         if [ ${CHECK_CRON} -eq 1 ]
         then
             echo "${LANG_CREATE_SSL8}"
         else
-            echo "0 2 * * * /opt/letsencrypt/letsencrypt-auto renew" >> /var/spool/cron/root
+            echo "0 2 * * * /usr/bin/certbot renew" >> /var/spool/cron/root
             echo "15 2 * * * /sbin/service nginx reload" >> /var/spool/cron/root
             if [ -f /bin/systemctl ]
             then

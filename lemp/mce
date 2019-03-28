@@ -2,7 +2,6 @@
 # MCE_LAMP
 # Version: 1.0
 # Author: Mbrother
-# Change log:
 
 source /var/mce/script/variable_common
 source ${BASH_DIR}/lang

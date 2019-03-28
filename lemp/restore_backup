@@ -2,7 +2,6 @@
 # MCE_LEMP restore backup for an account
 # Version: 1.0
 # Author: mbrother
-# Change log:
 
 source /var/mce/script/variable_common
 source ${BASH_DIR}/lang

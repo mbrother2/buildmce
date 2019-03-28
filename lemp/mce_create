@@ -2,7 +2,6 @@
 # MCE_LEMP download all scripts of mce
 # Version: 1.0
 # Author: mbrother
-# Change log:
 
 # Set variable
 GREEN='\e[92m'

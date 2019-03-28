@@ -2,7 +2,6 @@
 # MCE_LEMP variables common
 # Version: 1.0
 # Author: mbrother
-# Change log:
 
 # Set color variables
 GREEN='\e[92m'

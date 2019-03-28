@@ -2,7 +2,6 @@
 # MCE_LEMP delete an account
 # Version: 1.0
 # Author: mbrother
-# Change log:
 
 source /var/mce/script/variable_common
 source ${BASH_DIR}/lang

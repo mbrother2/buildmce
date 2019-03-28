@@ -2,7 +2,6 @@
 # MCE_LEMP advanced option
 # Version: 1.0
 # Author: mbrother
-# Change log:
 
 # Print space
 printf_s(){

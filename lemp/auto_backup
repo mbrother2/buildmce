@@ -2,8 +2,6 @@
 # MCE_LEMP enable cron backup
 # Version: 1.0
 # Author: mbrother
-# Change log:
-
 
 # Enable cron backup
 enable_backup(){

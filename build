@@ -641,6 +641,7 @@ install_csf(){
     cat >> "/etc/csf/csf.pignore" <<EOCSF
 exe:/usr/sbin/nginx
 exe:/usr/sbin/php-fpm
+exe:/usr/sbin/rpcbind
 pexe:/usr/libexec/postfix/.*
 pexe:/opt/remi/.*/root/usr/sbin/php-fpm
 EOCSF

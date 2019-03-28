@@ -78,11 +78,7 @@ create_ssl(){
         echo -e "${RED}${LANG_CREATE_SSL17}${REMOVE} ${DOMAIN}!"
         exit
     else
-        /usr/bin/certbot certonly --webroot -w /home/"${USER}"/public_html/ -d ${DOMAIN} <<EOletsencrypt
-admin@${DOMAIN}
-A
-N
-EOletsencrypt
+        /usr/bin/certbot certonly --non-interactive -m admin@${DOMAIN} --webroot -w /home/"${USER}"/public_html/ -d ${DOMAIN}
     fi
     echo -e "${GREEN} ${LANG_CREATE_SSL11} ${DOMAIN}...${REMOVE}"
     sleep 1

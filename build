@@ -67,7 +67,7 @@ multi_lang(){
 
         LANG_START_TIME="${GREEN} Let's go...${REMOVE}"
 
-                LANG_UPDATE_SYS=" ${GREEN}Updating system...${REMOVE}"
+        LANG_UPDATE_SYS=" ${GREEN}Updating system...${REMOVE}"
 
         LANG_INSTALL_PHP=" ${GREEN}Installing php...${REMOVE}"
 
@@ -490,7 +490,6 @@ start_time(){
 sleep 2
 }
 
-
 # Update system
 update_sys(){
     ##Update system
@@ -502,7 +501,6 @@ update_sys(){
         yum -y update
     fi
 }
-
 
 #Install Services
 ##Install PHP
@@ -627,7 +625,7 @@ install_ftp(){
     yum -y install proftpd
 }
 
-# Install csf_sys
+# Install csf
 install_csf(){
     echo ""
     echo -e "${LANG_INSTALL_CSF}"

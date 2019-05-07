@@ -175,7 +175,7 @@ LANG_AUTO_BACKUP5="Please choose 1 or 2!"
 LANG_AUTO_BACKUP6="No user exists! Can not enable or disable auto backup!"
 LANG_AUTO_BACKUP7="Success! Cron run at 00h00' everyday."
 LANG_AUTO_BACKUP8="Backup files will be store in:"
-LANG_AUTO_BACKUP9="Cron backup DO NOT exsit! Nothing to do."
+LANG_AUTO_BACKUP9="Cron backup DO NOT exist! Nothing to do."
 LANG_AUTO_BACKUP10="Cron backup EXISTED! Nothing to do."
 LANG_AUTO_BACKUP11="Success! Disabled auto backup!"
 

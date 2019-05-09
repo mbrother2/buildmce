@@ -394,10 +394,10 @@ opencart_install(){
 install_source_code(){
     WORDPRESS_VER1="latest"
     WORDPRESS_VER1_LANG="${LANG_CREATE_HOST15}"
-    WORDPRESS_VER2="4.8.5"
-    JOOMLA_VER1="3.8.5"
+    WORDPRESS_VER2="4.9.10"
+    JOOMLA_VER1="3.9.6"
     JOOMLA_VER2="2.5.28"
-    OPENCART_VER1="3.0.2.0"
+    OPENCART_VER1="3.0.3.2"
     OPENCART_VER2="2.3.0.2"
 
     if [ ! -d ${SOURCE_DIR} ]

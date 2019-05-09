@@ -261,6 +261,13 @@ wordpress_install(){
     if [ ! -f ${SOURCE_DIR}/wordpress-$1.tar.gz ]
     then
         wget -O ${SOURCE_DIR}/wordpress-$1.tar.gz https://wordpress.org/wordpress-$1.tar.gz
+    else
+        WP_MD5_ONLINE=`curl https://wordpress.org/wordpress-$1.tar.gz.md5`
+        WP_MD5_LOCAL=`md5sum ${SOURCE_DIR}/wordpress-$1.tar.gz | awk '{print $1}'`
+        if [ "${WP_MD5_ONLINE}" != "${WP_MD5_LOCAL}" ]
+        then
+            wget -O ${SOURCE_DIR}/wordpress-$1.tar.gz https://wordpress.org/wordpress-$1.tar.gz
+        fi
     fi
     cd ${SOURCE_DIR}
     echo -e " ${GREEN}${LANG_CREATE_HOST14}${REMOVE}"

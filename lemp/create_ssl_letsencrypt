@@ -58,6 +58,28 @@ check_domain(){
     DOMAIN=`cat /tmp/all_domains | awk -v CHOICE2="${CHOICE}""."  '{if (CHOICE2 == $1) print $3}'`
 }
 
+# Check install Let's Encrypt
+check_install_letsencrypt(){
+    RANDOM_STRING=`< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c${1:-16}`
+    mkdir -p /home/${USER}/public_html/.well-known/acme-challenge
+    echo "${RANDOM_STRING}" >> /home/${USER}/public_html/.well-known/acme-challenge/${RANDOM_STRING}.txt
+    chown -R ${USER}.${USER} /home/${USER}/public_html/.well-known
+    if [ ! -f /home/${USER}/public_html/.well-known/acme-challenge/${RANDOM_STRING}.txt ]
+    then
+        rm -rf /home/${USER}/public_html/.well-known
+        echo -e "${RED}${LANG_CREATE_SSL14}${REMOVE}"
+        exit
+    else
+        RANDOM_STRING2=`curl http://${DOMAIN}/${RANDOM_STRING}.txt`
+        if [ "${RANDOM_STRING}" != "${RANDOM_STRING2}" ]
+        then
+            rm -rf /home/${USER}/public_html/.well-known
+            echo -e "${RED}${LANG_CREATE_SSL13}${REMOVE}"
+        exit
+        fi
+    fi
+}
+
 # Install Let's Encrypt
 install_letsencrypt(){
     if [ ! -f /usr/bin/certbot ]
@@ -203,6 +225,7 @@ then
     exit
 fi
 check_domain
+check_install_letsencrypt
 install_letsencrypt
 create_ssl
 auto_renew_ssl

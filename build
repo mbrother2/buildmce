@@ -315,7 +315,7 @@ check_info(){
     SYNC_TIME=`     cat ${DIR}/options.conf | grep "sync_time="      | cut -d"=" -f2`
     TIME_ZONE=`     cat ${DIR}/options.conf | grep "time_zone="      | cut -d"=" -f2`
     UPDATE_SYS=`    cat ${DIR}/options.conf | grep "update_sys="     | cut -d"=" -f2`
-    CSF_INST=`      cat ${DIR}/options.conf | grep "csf_sys="        | cut -d"=" -f2`
+    CSF_INST=`      cat ${DIR}/options.conf | grep "csf_inst="       | cut -d"=" -f2`
     OPTION_VESION="${LANG_CHECK_INFO2}"
 
     if [[ "${OPTION}" == "web" ]] || [[ "${OPTION}" == "all" ]]

@@ -128,7 +128,7 @@ multi_lang(){
         LANG_DOWNLOAD_MCE3=" Downloading mce..."
         LANG_DOWNLOAD_MCE4="Done! Please type '${GREEN}mce${REMOVE}' to start create your amazing website!"
         LANG_DOWNLOAD_MCE5="${RED}SYSTEM WILL REBOOT IN 5s!${REMOVE}"
-        LANG_DOWNLOAD_MCE6="If you DO NOT want to REBOOT your server. Please use {GREEN}'Ctrl + C'${REMOVE} to exit!"
+        LANG_DOWNLOAD_MCE6="If you DO NOT want to REBOOT your server. Please use ${GREEN}'Ctrl + C'${REMOVE} to exit!"
         LANG_DOWNLOAD_MCE7="Please choose Yes or No"
     elif [ ${CHOOSE_LANG} -eq 2 ]
     then

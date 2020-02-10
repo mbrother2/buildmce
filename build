@@ -17,6 +17,7 @@ CPANEL="/usr/local/cpanel/cpanel"
 DIRECTADMIN="/usr/local/directadmin/custombuild/build"
 PLESK="/usr/local/psa/version"
 GITHUB_LINK="https://raw.githubusercontent.com/mbrother2/buildmce/master"
+List_PHP=(5.4 5.5 5.6 7.0 7.1 7.2 7.3 7.4)
 
 # Multi languages
 multi_lang(){
@@ -130,7 +131,6 @@ check_info(){
         fi
         if [ "${PHP_INST}" != "no" ]
         then
-            List_PHP=(5.4 5.5 5.6 7.0 7.1 7.2)
             check_list "${PHP_VER}" "${List_PHP[*]}"
             if [ $? -eq 1 ]
             then
@@ -300,7 +300,30 @@ install_php(){
     yum -y install epel-release centos-release-scl-rh
     yum -y --enablerepo=centos-sclo-rh-testing install devtoolset-6-gcc-c++
     rpm -Uvh http://rpms.remirepo.net/enterprise/remi-release-${OS_VER}.rpm
-    yum -y --enablerepo=remi-php${PHP_VER1} install php php-fpm php-devel php-curl php-exif php-fileinfo php-gd php-hash php-intl php-imap php-json php-mbstring php-mcrypt php-mysqlnd php-soap php-xml php-simplexml php-xmlrpc php-xsl php-zip php-zlib php-session php-filter
+    yum -y --enablerepo=remi-php${PHP_VER1} install \
+        php \
+        php-fpm \
+        php-devel \
+        php-curl \
+        php-exif \
+        php-fileinfo \
+        php-gd \
+        php-hash \
+        php-intl \
+        php-imap \
+        php-json \
+        php-mbstring \
+        php-mcrypt \
+        php-mysqlnd \
+        php-soap \
+        php-xml \
+        php-simplexml \
+        php-xmlrpc \
+        php-xsl \
+        php-zip \
+        php-zlib \
+        php-session \
+        php-filter
 
     if [ "${PHP_INST}" == "all" ]
     then
@@ -309,7 +332,30 @@ install_php(){
             PHP_VER2=`echo ${i} | sed 's/\.//'`
             if [ "${PHP_VER2}" != "${PHP_VER1}" ]
             then
-                yum -y --enablerepo=remi-php${PHP_VER2} install php${PHP_VER2}-php php${PHP_VER2}-php-fpm php${PHP_VER2}-php-devel php${PHP_VER2}-php-curl php${PHP_VER2}-php-exif php${PHP_VER2}-php-fileinfo php${PHP_VER2}-php-gd php${PHP_VER2}-php-hash php${PHP_VER2}-php-intl php${PHP_VER2}-php-imap php${PHP_VER2}-php-json php${PHP_VER2}-php-mbstring php${PHP_VER2}-php-mcrypt php${PHP_VER2}-php-mysqlnd php${PHP_VER2}-php-soap php${PHP_VER2}-php-xml php${PHP_VER2}-php-simplexml php${PHP_VER2}-php-xmlrpc php${PHP_VER2}-php-xsl php${PHP_VER2}-php-zip php${PHP_VER2}-php-zlib php${PHP_VER2}-php-session php${PHP_VER2}-php-filter
+                yum -y --enablerepo=remi-php${PHP_VER2} install \
+                    php${PHP_VER2}-php \
+                    php${PHP_VER2}-php-fpm \
+                    php${PHP_VER2}-php-devel \
+                    php${PHP_VER2}-php-curl \
+                    php${PHP_VER2}-php-exif \
+                    php${PHP_VER2}-php-fileinfo \
+                    php${PHP_VER2}-php-gd \
+                    php${PHP_VER2}-php-hash \
+                    php${PHP_VER2}-php-intl \
+                    php${PHP_VER2}-php-imap \
+                    php${PHP_VER2}-php-json \
+                    php${PHP_VER2}-php-mbstring \
+                    php${PHP_VER2}-php-mcrypt \
+                    php${PHP_VER2}-php-mysqlnd \
+                    php${PHP_VER2}-php-soap \
+                    php${PHP_VER2}-php-xml \
+                    php${PHP_VER2}-php-simplexml \
+                    php${PHP_VER2}-php-xmlrpc \
+                    php${PHP_VER2}-php-xsl \
+                    php${PHP_VER2}-php-zip \
+                    php${PHP_VER2}-php-zlib \
+                    php${PHP_VER2}-php-session \
+                    php${PHP_VER2}-php-filter
                 if [[ "${PHP_VER2}" == "54" ]] || [[ "${PHP_VER2}" == "55" ]]
                 then
                     REMI_DIR="/etc/opt/remi"
@@ -502,14 +548,26 @@ config_php(){
     echo -e "${LANG_CONFIG_PHP}"
     sleep 2
     mv /etc/php.ini /etc/php.ini.orig
-    cat /etc/php.ini.orig | sed "s/memory_limit = 128M/memory_limit = 256M/; s/upload_max_filesize = 2M/upload_max_filesize = 200M/; s/post_max_size = 8M/post_max_size = 200M/; s/max_execution_time = 30/max_execution_time = 300/; s/max_input_time = 60/max_input_time = 300/; s/; max_input_vars = 1000/max_input_vars = 10000/" > /etc/php.ini
+    cat /etc/php.ini.orig | sed \
+        "s/memory_limit = 128M/memory_limit = 256M/; \
+        s/upload_max_filesize = 2M/upload_max_filesize = 200M/; \
+        s/post_max_size = 8M/post_max_size = 200M/; \
+        s/max_execution_time = 30/max_execution_time = 300/; \
+        s/max_input_time = 60/max_input_time = 300/; \
+        s/; max_input_vars = 1000/max_input_vars = 10000/" > /etc/php.ini
     if [ "${PHP_INST}" == "all" ]
     then
         for i in $(echo ${List_PHP[*]} | sed "s/${PHP_VER}//")
         do
             PHP_VER2=`echo ${i} | sed 's/\.//'`
             mv ${REMI_DIR}/php${PHP_VER2}/php.ini ${REMI_DIR}/php${PHP_VER2}/php.ini.orig
-            cat ${REMI_DIR}/php${PHP_VER2}/php.ini.orig | sed "s/memory_limit = 128M/memory_limit = 256M/; s/upload_max_filesize = 2M/upload_max_filesize = 200M/; s/post_max_size = 8M/post_max_size = 200M/; s/max_execution_time = 30/max_execution_time = 300/; s/max_input_time = 60/max_input_time = 300/; s/; max_input_vars = 1000/max_input_vars = 10000/" > ${REMI_DIR}/php${PHP_VER2}/php.ini
+            cat ${REMI_DIR}/php${PHP_VER2}/php.ini.orig | sed \
+                "s/memory_limit = 128M/memory_limit = 256M/; \
+                s/upload_max_filesize = 2M/upload_max_filesize = 200M/; \
+                s/post_max_size = 8M/post_max_size = 200M/; \
+                s/max_execution_time = 30/max_execution_time = 300/; \
+                s/max_input_time = 60/max_input_time = 300/; \
+                s/; max_input_vars = 1000/max_input_vars = 10000/" > ${REMI_DIR}/php${PHP_VER2}/php.ini
         done
     fi
 }
@@ -536,7 +594,6 @@ http {
         default_type application/octet-stream;
         access_log /var/log/nginx/access.log;
         error_log /var/log/nginx/error.log;
-
 
         sendfile on;
         tcp_nopush on;
@@ -567,7 +624,6 @@ http {
         output_buffers   4 32k;
         postpone_output  1460;
         log_format traffic '\$request_length \$bytes_sent ';
-
 
         include /etc/nginx/conf.d/*.conf;
 }
@@ -601,7 +657,6 @@ server {
             fastcgi_param       SCRIPT_FILENAME /usr/share/nginx/html/phpmyadmin/\$1;
             fastcgi_param       DOCUMENT_ROOT /usr/share/nginx/html/phpmyadmin;
         }
-
 
         error_page   500 502 503 504  /50x.html;
         location = /50x.html {
@@ -777,11 +832,14 @@ config_phpmyadmin(){
 \$cfg['PmaNoRelation_DisableWarning'] = true;
 \$cfg['VersionCheck'] = false;
 EOCONFIGINC
-
-    if [ ${WEB} == "apache" ]
+    
+    if [ ${WEB} == "nginx" ]
+    then
+        chmod -R nginx.nginx ${DEFAULT_DIR_WEB}/phpmyadmin
+    elif [ ${WEB} == "apache" ]
     then
         chown apache.apache /var/lib/php/session
-        fi
+    fi
 }
 
 # Auto Config
@@ -794,7 +852,7 @@ auto_config(){
         then
             echo "${LANG_AUTO_CONFIG2}"
         else
-        config_php
+            config_php
         fi
         if [ "${MYSQL_INST}" == "no" ]
         then
@@ -806,15 +864,15 @@ auto_config(){
         then
             echo "${LANG_AUTO_CONFIG4}"
         else
-        config_phpmyadmin
+            config_phpmyadmin
         fi
         if [ "${WEB}" == "no" ]
         then
             echo "${LANG_AUTO_CONFIG5}"
         elif [ ${WEB} == "nginx" ]
-            then
+        then
             config_nginx
-                        config_php_fpm
+            config_php_fpm
         fi
     fi
 }

@@ -1,0 +1,108 @@
+LANG_YES_NO=" You type wrong. Please type ${GREEN}Yes${REMOVE} with caption Y!"
+
+LANG_CHECK_CONTROL_PANEL1="Your server has installed Control Panel (ex cPanel, DirectAdmin, Plesk) before!"
+LANG_CHECK_CONTROL_PANEL2="Please use clean server to install mce. Good bye!"
+
+LANG_CHECK_OPTIONS1="${GREEN} Please use:${REMOVE}"
+LANG_CHECK_OPTIONS2="sh ${0} [all] [php] [mysql] [ftp] [httpd] [nginx] [--help]"
+LANG_CHECK_OPTIONS3="sh ${0} all     : Build all services which config on options.conf"
+LANG_CHECK_OPTIONS4="sh ${0} php     : Build PHP Only"
+LANG_CHECK_OPTIONS5="sh ${0} mysql   : Build MySQL Only"
+LANG_CHECK_OPTIONS6="sh ${0} ftp     : Build ftp Only"
+LANG_CHECK_OPTIONS7="sh ${0} httpd   : Build Apache Only"
+LANG_CHECK_OPTIONS8="sh ${0} nginx   : Build nginx Only"
+LANG_CHECK_OPTIONS9="sh ${0} csf     : Build csf Only"
+LANG_CHECK_OPTIONS10="sh ${0} --help : Show options avaiable"
+LANG_CHECK_OPTIONS11=" ${0}: invalid option '${OPTION}'\n Try 'sh ${0} --help' for more information."
+
+LANG_CHECK_INFO1="File ${GREEN}options.conf${REMOVE} do not exist! Downloading..."
+LANG_CHECK_INFO2="Latest"
+LANG_CHECK_INFO3=" NOT support Web server"
+LANG_CHECK_INFO4=" Only support Web server ${GREEN}httpd${REMOVE}, ${GREEN}nginx${REMOVE}! Please check Webserver Settings in options.conf"
+LANG_CHECK_INFO5=" NOT support PHP option"
+LANG_CHECK_INFO6=" Only support PHP option: ${GREEN}yes${REMOVE}, ${GREEN}no${REMOVE}, ${GREEN}all${REMOVE}! Please check PHP Settings in options.conf"
+LANG_CHECK_INFO7=" NOT support PHP"
+LANG_CHECK_INFO8=" Only support PHP ${GREEN}5.4${REMOVE}, ${GREEN}5.5${REMOVE}, ${GREEN}5.6${REMOVE}, ${GREEN}7.0${REMOVE}, ${GREEN}7.1${REMOVE}, ${GREEN}7.2${REMOVE}! Please check PHP Settings in options.conf"
+LANG_CHECK_INFO9="All_versions"
+LANG_CHECK_INFO10=" Now we only support mariadb! Please config ${GREEN}mysql_inst=mariadb${REMOVE} in options.conf and try again."
+LANG_CHECK_INFO11=" NOT support SQL"
+LANG_CHECK_INFO12=" Only support Mariadb ${GREEN}10.0${REMOVE}, ${GREEN}10.1${REMOVE}, ${GREEN}10.2${REMOVE}! Please check SQL Settings in options.conf"
+LANG_CHECK_INFO13="not exist. Change time zone to default:"
+LANG_CHECK_INFO14=" You can find your time zone here: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List"
+
+LANG_SHOW_INFO_INSTALL1=" Your server will be installed following serivces:"
+LANG_SHOW_INFO_INSTALL2=" PHP: All_versions"
+LANG_SHOW_INFO_INSTALL3=" Lastest"
+LANG_SHOW_INFO_INSTALL4=" If you want to choose other version (PHP, Mysql...) please use \"Ctrl + C\" and edit file options.conf"
+LANG_SHOW_INFO_INSTALL5=" Do you agree with above options? If yes, please type ${GREEN}Yes${REMOVE} with caption Y, then press ${GREEN}Enter${REMOVE}."
+LANG_SHOW_INFO_INSTALL6=" Your choice: "
+
+LANG_PRE_INSTALL=" ${GREEN}Checking DNS and disable SELINUX...${REMOVE}"
+
+LANG_SYNC_TIME="${GREEN} Syncing time...${REMOVE}"
+
+LANG_START_TIME="${GREEN} Let's go...${REMOVE}"
+
+LANG_UPDATE_SYS=" ${GREEN}Updating system...${REMOVE}"
+
+LANG_INSTALL_PHP=" ${GREEN}Installing php...${REMOVE}"
+
+LANG_INSTALL_WEB=" ${GREEN}Installing web server...${REMOVE}"
+
+LANG_INSTALL_MARIADB1=" ${GREEN}Installing mysql...${REMOVE}"
+LANG_INSTALL_MARIADB2=" Can not connect to MariaDB server! We will NOT install MySQL."
+
+LANG_INSTALL_PHPMYADMIN1=" ${GREEN}Installing phpmyadmin...${REMOVE}"
+LANG_INSTALL_PHPMYADMIN2="Do not exist directory"
+LANG_INSTALL_PHPMYADMIN3="phpMyadmin have not installed!"
+
+LANG_INSTALL_FTP=" ${GREEN}Installing ftp...${REMOVE}"
+
+LANG_INSTALL_CSF=" ${GREEN}Installing csf...${REMOVE}"
+
+LANG_CONFIG_PHP=" ${GREEN}Configing php...${REMOVE}"
+
+LANG_CONFIG_NGINX=" ${GREEN}Configing nginx...${REMOVE}"
+
+LANG_CONFIG_PHP_FPM=" ${GREEN}Configing php-fpm...${REMOVE}"
+
+LANG_CONFIG_MYSQL=" ${GREEN}Configing mysql...${REMOVE}"
+
+LANG_CONFIG_PHPMYADMIN=" ${GREEN}Configing phpmyadmin...${REMOVE}"
+
+LANG_AUTO_CONFIG1="You do not use custom config!"
+LANG_AUTO_CONFIG2="You do not install PHP, so can not config!"
+LANG_AUTO_CONFIG3="You do not install MySQL, so can not config!"
+LANG_AUTO_CONFIG4="You do not install phpMyAdmin, so can not config!"
+LANG_AUTO_CONFIG5="You do not install web server, so can not config!"
+
+LANG_RESTART_SERVICES=" Restart services..."
+
+LANG_START_ON_BOOT=" Config service run on boot..."
+
+LANG_CHECK_EXIST1="${GREEN}Yes${REMOVE}"
+LANG_CHECK_EXIST2="${RED}No ${REMOVE}"
+
+LANG_END_TIME1=" Begin time       : "
+LANG_END_TIME2=" End time : "
+LANG_END_TIME3=" Installation time: "
+
+LANG_CHECK_SERVICES1=" Ensure services are installed and running:"
+LANG_CHECK_SERVICES2=" Service   Installed   Running"
+
+LANG_SHOW_INFO1=" Setup successfully!"
+LANG_SHOW_INFO2=" Please remember run command mysql_secure_installation to set root password of MySQL and secure MySQL!"
+LANG_SHOW_INFO3=" Root of mysql is stored in: /root/.my.cnf"
+LANG_SHOW_INFO4=" Please use these informations to login to phpMyadmin:"
+LANG_SHOW_INFO5=" user    : root"
+LANG_SHOW_INFO6=" password:"
+LANG_SHOW_INFO7=" Good bye!"
+LANG_SHOW_INFO8=" ${GREEN}Please reboot server before use!${REMOVE}"
+
+LANG_DOWNLOAD_MCE1="If you want use ${GREEN}'mce'${REMOVE} to auto create user, vhost, ssl... please type ${GREEN}Yes${REMOVE} with caption Y."
+LANG_DOWNLOAD_MCE2="Your choice: "
+LANG_DOWNLOAD_MCE3=" Downloading mce..."
+LANG_DOWNLOAD_MCE4="Done! Please type '${GREEN}mce${REMOVE}' to start create your amazing website!"
+LANG_DOWNLOAD_MCE5="${RED}SYSTEM WILL REBOOT IN 5s!${REMOVE}"
+LANG_DOWNLOAD_MCE6="If you DO NOT want to REBOOT your server. Please use ${GREEN}'Ctrl + C'${REMOVE} to exit!"
+LANG_DOWNLOAD_MCE7="Please choose Yes or No"

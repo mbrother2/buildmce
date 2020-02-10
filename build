@@ -16,230 +16,18 @@ OPTION=${1}
 CPANEL="/usr/local/cpanel/cpanel"
 DIRECTADMIN="/usr/local/directadmin/custombuild/build"
 PLESK="/usr/local/psa/version"
-MCE_LINK="https://files.buildmce.com/buildmce"
+GITHUB_LINK="https://raw.githubusercontent.com/mbrother2/buildmce/master"
 
 # Multi languages
 multi_lang(){
     if [ ${CHOOSE_LANG} -eq 1 ]
     then
-        LANG_YES_NO=" You type wrong. Please type ${GREEN}Yes${REMOVE} with caption Y!"
-
-        LANG_CHECK_CONTROL_PANEL1="Your server has installed Control Panel (ex cPanel, DirectAdmin, Plesk) before!"
-        LANG_CHECK_CONTROL_PANEL2="Please use clean server to install mce. Good bye!"
-
-        LANG_CHECK_OPTIONS1="${GREEN} Please use:${REMOVE}"
-        LANG_CHECK_OPTIONS2="sh ${0} [all] [php] [mysql] [ftp] [httpd] [nginx] [--help]"
-        LANG_CHECK_OPTIONS3="sh ${0} all     : Build all services which config on options.conf"
-        LANG_CHECK_OPTIONS4="sh ${0} php     : Build PHP Only"
-        LANG_CHECK_OPTIONS5="sh ${0} mysql   : Build MySQL Only"
-        LANG_CHECK_OPTIONS6="sh ${0} ftp     : Build ftp Only"
-        LANG_CHECK_OPTIONS7="sh ${0} httpd   : Build Apache Only"
-        LANG_CHECK_OPTIONS8="sh ${0} nginx   : Build nginx Only"
-        LANG_CHECK_OPTIONS9="sh ${0} csf     : Build csf Only"
-        LANG_CHECK_OPTIONS10="sh ${0} --help : Show options avaiable"
-        LANG_CHECK_OPTIONS11=" ${0}: invalid option '${OPTION}'\n Try 'sh ${0} --help' for more information."
-
-        LANG_CHECK_INFO1="File ${GREEN}options.conf${REMOVE} do not exist! Downloading..."
-        LANG_CHECK_INFO2="Latest"
-        LANG_CHECK_INFO3=" NOT support Web server"
-        LANG_CHECK_INFO4=" Only support Web server ${GREEN}httpd${REMOVE}, ${GREEN}nginx${REMOVE}! Please check Webserver Settings in options.conf"
-        LANG_CHECK_INFO5=" NOT support PHP option"
-        LANG_CHECK_INFO6=" Only support PHP option: ${GREEN}yes${REMOVE}, ${GREEN}no${REMOVE}, ${GREEN}all${REMOVE}! Please check PHP Settings in options.conf"
-        LANG_CHECK_INFO7=" NOT support PHP"
-        LANG_CHECK_INFO8=" Only support PHP ${GREEN}5.4${REMOVE}, ${GREEN}5.5${REMOVE}, ${GREEN}5.6${REMOVE}, ${GREEN}7.0${REMOVE}, ${GREEN}7.1${REMOVE}, ${GREEN}7.2${REMOVE}! Please check PHP Settings in options.conf"
-        LANG_CHECK_INFO9="All_versions"
-        LANG_CHECK_INFO10=" Now we only support mariadb! Please config ${GREEN}mysql_inst=mariadb${REMOVE} in options.conf and try again."
-        LANG_CHECK_INFO11=" NOT support SQL"
-        LANG_CHECK_INFO12=" Only support Mariadb ${GREEN}10.0${REMOVE}, ${GREEN}10.1${REMOVE}, ${GREEN}10.2${REMOVE}! Please check SQL Settings in options.conf"
-        LANG_CHECK_INFO13="not exist. Change time zone to default:"
-        LANG_CHECK_INFO14=" You can find your time zone here: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List"
-
-        LANG_SHOW_INFO_INSTALL1=" Your server will be installed following serivces:"
-        LANG_SHOW_INFO_INSTALL2=" PHP: All_versions"
-        LANG_SHOW_INFO_INSTALL3=" Lastest"
-        LANG_SHOW_INFO_INSTALL4=" If you want to choose other version (PHP, Mysql...) please use \"Ctrl + C\" and edit file options.conf"
-        LANG_SHOW_INFO_INSTALL5=" Do you agree with above options? If yes, please type ${GREEN}Yes${REMOVE} with caption Y, then press ${GREEN}Enter${REMOVE}."
-        LANG_SHOW_INFO_INSTALL6=" Your choice: "
-
-        LANG_PRE_INSTALL=" ${GREEN}Checking DNS and disable SELINUX...${REMOVE}"
-
-        LANG_SYNC_TIME="${GREEN} Syncing time...${REMOVE}"
-
-        LANG_START_TIME="${GREEN} Let's go...${REMOVE}"
-
-        LANG_UPDATE_SYS=" ${GREEN}Updating system...${REMOVE}"
-
-        LANG_INSTALL_PHP=" ${GREEN}Installing php...${REMOVE}"
-
-        LANG_INSTALL_WEB=" ${GREEN}Installing web server...${REMOVE}"
-
-        LANG_INSTALL_MARIADB1=" ${GREEN}Installing mysql...${REMOVE}"
-        LANG_INSTALL_MARIADB2=" Can not connect to MariaDB server! We will NOT install MySQL."
-
-        LANG_INSTALL_PHPMYADMIN1=" ${GREEN}Installing phpmyadmin...${REMOVE}"
-        LANG_INSTALL_PHPMYADMIN2="Do not exist directory"
-        LANG_INSTALL_PHPMYADMIN3="phpMyadmin have not installed!"
-
-        LANG_INSTALL_FTP=" ${GREEN}Installing ftp...${REMOVE}"
-
-        LANG_INSTALL_CSF=" ${GREEN}Installing csf...${REMOVE}"
-
-        LANG_CONFIG_PHP=" ${GREEN}Configing php...${REMOVE}"
-
-        LANG_CONFIG_NGINX=" ${GREEN}Configing nginx...${REMOVE}"
-
-        LANG_CONFIG_PHP_FPM=" ${GREEN}Configing php-fpm...${REMOVE}"
-
-        LANG_CONFIG_MYSQL=" ${GREEN}Configing mysql...${REMOVE}"
-
-        LANG_CONFIG_PHPMYADMIN=" ${GREEN}Configing phpmyadmin...${REMOVE}"
-
-        LANG_AUTO_CONFIG1="You do not use custom config!"
-        LANG_AUTO_CONFIG2="You do not install PHP, so can not config!"
-        LANG_AUTO_CONFIG3="You do not install MySQL, so can not config!"
-        LANG_AUTO_CONFIG4="You do not install phpMyAdmin, so can not config!"
-        LANG_AUTO_CONFIG5="You do not install web server, so can not config!"
-
-        LANG_RESTART_SERVICES=" Restart services..."
-
-        LANG_START_ON_BOOT=" Config service run on boot..."
-
-        LANG_CHECK_EXIST1="${GREEN}Yes${REMOVE}"
-        LANG_CHECK_EXIST2="${RED}No ${REMOVE}"
-
-        LANG_END_TIME1=" Begin time       : "
-        LANG_END_TIME2=" End time         : "
-        LANG_END_TIME3=" Installation time: "
-
-        LANG_CHECK_SERVICES1=" Ensure services are installed and running:"
-        LANG_CHECK_SERVICES2=" Service   Installed   Running"
-
-        LANG_SHOW_INFO1=" Setup successfully!"
-        LANG_SHOW_INFO2=" Please remember run command mysql_secure_installation to set root password of MySQL and secure MySQL!"
-        LANG_SHOW_INFO3=" Root of mysql is stored in: /root/.my.cnf"
-        LANG_SHOW_INFO4=" Please use these informations to login to phpMyadmin:"
-        LANG_SHOW_INFO5=" user    : root"
-        LANG_SHOW_INFO6=" password:"
-        LANG_SHOW_INFO7=" Good bye!"
-        LANG_SHOW_INFO8=" ${GREEN}Please reboot server before use!${REMOVE}"
-
-        LANG_DOWNLOAD_MCE1="If you want use ${GREEN}'mce'${REMOVE} to auto create user, vhost, ssl... please type ${GREEN}Yes${REMOVE} with caption Y."
-        LANG_DOWNLOAD_MCE2="Your choice: "
-        LANG_DOWNLOAD_MCE3=" Downloading mce..."
-        LANG_DOWNLOAD_MCE4="Done! Please type '${GREEN}mce${REMOVE}' to start create your amazing website!"
-        LANG_DOWNLOAD_MCE5="${RED}SYSTEM WILL REBOOT IN 5s!${REMOVE}"
-        LANG_DOWNLOAD_MCE6="If you DO NOT want to REBOOT your server. Please use ${GREEN}'Ctrl + C'${REMOVE} to exit!"
-        LANG_DOWNLOAD_MCE7="Please choose Yes or No"
+        curl -o ${DIR}/build.en ${GITHUB_LINK}/language/build.en
+        source ${DIR}/build.en
     elif [ ${CHOOSE_LANG} -eq 2 ]
     then
-        LANG_YES_NO=" Bạn gõ sai. Vui lòng gõ từ ${GREEN}Yes${REMOVE} với chữ cái ${GREEN}Y${REMOVE} viết hoa!"
-
-        LANG_CHECK_CONTROL_PANEL1="Máy chủ của bạn đã được cài đặt công cụ quản lý trước đây (ví dụ cPanel, DirectAdmin, Plesk)!"
-        LANG_CHECK_CONTROL_PANEL2="Vui lòng sử dụng máy chủ 'sạch' chỉ cài đặt hệ điều hành CentOS để tiếp tục cài đặt mce."
-
-        LANG_CHECK_OPTIONS1="${GREEN} Vui lòng sử dụng theo cấu trúc sau:${REMOVE}"
-        LANG_CHECK_OPTIONS2="sh ${0} [all] [php] [mysql] [ftp] [httpd] [nginx] [--help]"
-        LANG_CHECK_OPTIONS3="sh ${0} all     : Cài đặt tất cả các dịch vụ được cấu hình trong file options.conf"
-        LANG_CHECK_OPTIONS4="sh ${0} php     : Chỉ cài đặt PHP"
-        LANG_CHECK_OPTIONS5="sh ${0} mysql   : Chỉ cài đặt MySQL"
-        LANG_CHECK_OPTIONS6="sh ${0} ftp     : Chỉ cài đặt ftp"
-        LANG_CHECK_OPTIONS7="sh ${0} httpd   : Chỉ cài đặt Apache"
-        LANG_CHECK_OPTIONS8="sh ${0} nginx   : Chỉ cài đặt nginx"
-        LANG_CHECK_OPTIONS9="sh ${0} csf     : Chỉ cài đặt csf"
-        LANG_CHECK_OPTIONS10="sh ${0} --help : Hiển thị các tùy chọn"
-        LANG_CHECK_OPTIONS11=" ${0}: Tùy chọn '${OPTION}' không hợp lệ. \n Vui lòng gõ 'sh ${0} --help' để xem các tùy chọn."
-
-        LANG_CHECK_INFO1="File ${GREEN}options.conf${REMOVE} không tồn tại! Đang tải..."
-        LANG_CHECK_INFO2="Mới_nhất"
-        LANG_CHECK_INFO3=" Không hỗ trợ Webserver"
-        LANG_CHECK_INFO4=" Chỉ hỗ trợ Webserver ${GREEN}httpd${REMOVE}, ${GREEN}nginx${REMOVE}! Vui lòng kiểm tra cài đặt Webserver trong file options.conf"
-        LANG_CHECK_INFO5=" Không hỗ trợ tùy chọn"
-        LANG_CHECK_INFO6=" Chỉ hỗ trợ các tùy chọn: ${GREEN}yes${REMOVE}, ${GREEN}no${REMOVE}, ${GREEN}all${REMOVE}! Vui lòng kiểm tra cài đặt PHP trong file options.conf"
-        LANG_CHECK_INFO7=" Không hỗ trợ PHP"
-        LANG_CHECK_INFO8=" Chỉ hỗ trợ các phiên bản PHP: ${GREEN}5.4${REMOVE}, ${GREEN}5.5${REMOVE}, ${GREEN}5.6${REMOVE}, ${GREEN}7.0${REMOVE}, ${GREEN}7.1${REMOVE}, ${GREEN}7.2${REMOVE}! Vui lòng kiểm tra cài đặt PHP trong file options.conf"
-        LANG_CHECK_INFO9="Tất_cả_các_phiên_bản"
-        LANG_CHECK_INFO10=" Hiện tại chúng tôi chỉ hỗ trợ cài đặt mariadb. Vui lòng cấu hình ${GREEN}mysql_inst=mariadb${REMOVE} trong file options.conf và thử lại."
-        LANG_CHECK_INFO11=" Không hỗ trợ SQL"
-        LANG_CHECK_INFO12=" Chỉ hỗ trợ các phiên bản Mariadb ${GREEN}10.0${REMOVE}, ${GREEN}10.1${REMOVE}, ${GREEN}10.2${REMOVE}! Vui lòng kiểm tra cấu hình SQL trong file options.conf"
-        LANG_CHECK_INFO13="không tồn tại. Thay đổi time zone về mặc định:"
-        LANG_CHECK_INFO14=" Bạn có thể tìm time zone của bạn tại đây: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List"
-
-        LANG_SHOW_INFO_INSTALL1=" Máy chủ của bạn sẽ cài đặt các dịch vụ sau:"
-        LANG_SHOW_INFO_INSTALL2=" PHP: Tất_cả_các_phiên_bản"
-        LANG_SHOW_INFO_INSTALL3=" Mới_nhất"
-        LANG_SHOW_INFO_INSTALL4=" Nếu bạn muốn cài đặt phiên bản khác cho PHP, Mysql... vui lòng sử dụng tổ hợp phím \"Ctrl + C\", sau đó chỉnh sửa trong file options.conf"
-        LANG_SHOW_INFO_INSTALL5=" Bạn có chắc chắn muốn cài đặt các dịch vụ trên? Nếu đúng vui lòng gõ từ ${GREEN}Yes${REMOVE} với chữ cái Y viết hoa, sau đó gõ ${GREEN}Enter${REMOVE}."
-        LANG_SHOW_INFO_INSTALL6=" Lựa chọn của bạn: "
-
-        LANG_PRE_INSTALL="${GREEN} Đang kiểm tra DNS và tắt SELINUX...${REMOVE}"
-
-        LANG_SYNC_TIME="${GREEN} Đang đồng bộ thời gian...${REMOVE}"
-
-        LANG_START_TIME="${GREEN} Bắt đầu cài đặt...${REMOVE}"
-
-        LANG_UPDATE_SYS="${GREEN} Đang cập nhật hệ thống...${REMOVE}"
-
-        LANG_INSTALL_PHP="${GREEN} Đang cài đặt php...${REMOVE}"
-
-        LANG_INSTALL_WEB="${GREEN} Đang cài đặt web server...${REMOVE}"
-
-        LANG_INSTALL_MARIADB1="${GREEN} Đang cài đặt mysql...${REMOVE}"
-        LANG_INSTALL_MARIADB2=" Không thể kết nối tới máy chủ của MariaDB! Chúng ta sẽ không cài đặt MySQL."
-
-        LANG_INSTALL_PHPMYADMIN1="${GREEN} Đang cài đặt phpmyadmin...${REMOVE}"
-        LANG_INSTALL_PHPMYADMIN2="Không tồn tại thư mục"
-        LANG_INSTALL_PHPMYADMIN3="Vì vậy không thể cài đặt phpMyAdmin!"
-
-        LANG_INSTALL_FTP="${GREEN} Đang cài đặt ftp...${REMOVE}"
-
-        LANG_INSTALL_CSF="${GREEN} Đang cài đặt csf...${REMOVE}"
-
-        LANG_CONFIG_PHP="${GREEN} Đang cấu hình php...${REMOVE}"
-
-        LANG_CONFIG_NGINX="${GREEN} Đang cấu hình nginx...${REMOVE}"
-
-        LANG_CONFIG_PHP_FPM="${GREEN} Đang cấu hình php-fpm...${REMOVE}"
-
-        LANG_CONFIG_MYSQL="${GREEN} Đang cấu hình mysql...${REMOVE}"
-
-        LANG_CONFIG_PHPMYADMIN="${GREEN} Đang cấu hình phpmyadmin...${REMOVE}"
-
-        LANG_AUTO_CONFIG1="Bạn không sử dụng công cụ tự động cấu hình!"
-        LANG_AUTO_CONFIG2="Bạn không cài đặt PHP, vì vậy không thể cấu hình PHP!"
-        LANG_AUTO_CONFIG3="Bạn không cài đặt MySQL, vì vậy không thể cấu hình MySQL!"
-        LANG_AUTO_CONFIG4="Bạn không cài đặt phpMyAdmin, vì vậy không thể cấu hình phpMyAdmin"
-        LANG_AUTO_CONFIG5="Bạn không cài đặt web server , vì vậy không thể cấu hình web server"
-
-        LANG_RESTART_SERVICES=" Khởi động lại các dịch vụ..."
-
-        LANG_START_ON_BOOT=" Cài đặt dịch vụ chạy khi khởi động máy chủ..."
-
-        LANG_CHECK_EXIST1="${GREEN}Có   ${REMOVE}"
-        LANG_CHECK_EXIST2="${RED}Không${REMOVE}"
-
-        LANG_END_TIME1=" Thời gian bắt đầu  : "
-        LANG_END_TIME2=" Thời gian kết thúc : "
-        LANG_END_TIME3=" Thời gian cài đặt  : "
-
-        LANG_CHECK_SERVICES1=" Kiểm tra dịch vụ đã được cài đặt và đang chạy:"
-        LANG_CHECK_SERVICES2=" Dịch vụ   Đã cài đặt   Đang chạy"
-
-        LANG_SHOW_INFO1=" Cài đặt thành công!"
-        LANG_SHOW_INFO2=" Vui lòng chạy câu lệnh mysql_secure_installation để thiết lập mật khẩu root cho MySQl và bảo mật MySQL!"
-        LANG_SHOW_INFO3=" Mật khẩu root của MySQL được lưu tại: /root/.my.cnf"
-        LANG_SHOW_INFO4=" Vui lòng sử dụng thông tin sau để truy cập vào phpMyadmin:"
-        LANG_SHOW_INFO5=" Tài khoản: root"
-        LANG_SHOW_INFO6=" Mật khẩu :"
-        LANG_SHOW_INFO7=" Tạm biệt!"
-        LANG_SHOW_INFO8="${GREEN} Vui lòng khởi động lại máy chủ của bạn trước khi sử dụng!${REMOVE}"
-
-        LANG_DOWNLOAD_MCE1="Nếu bạn muốn sử dụng ${GREEN}'mce'${REMOVE} để tự động cài đặt website, hosting, ssl...vui lòng gõ ${GREEN}Yes${REMOVE} với chữ Y viết hoa."
-        LANG_DOWNLOAD_MCE2="Lựa chọn của bạn: "
-        LANG_DOWNLOAD_MCE3=" Đang tải mce..."
-        LANG_DOWNLOAD_MCE4="Thành công! Vui lòng gõ '${GREEN}mce${REMOVE}' để bắt đầu cài đặt các website tuyệt vời của bạn!"
-        LANG_DOWNLOAD_MCE5="${RED}HỆ THỐNG SẼ KHỞI ĐỘNG LẠI SAU 5s!${REMOVE}"
-        LANG_DOWNLOAD_MCE6="Nếu bạn KHÔNG MUỐN KHỞI ĐỘNG LẠI máy chủ. Vui lòng sử dụng tổ hợp phím ${GREEN}'Ctrl + C'${REMOVE}!"
-        LANG_DOWNLOAD_MCE7="Vui lòng chọn Yes hoặc No"
+        curl -o ${DIR}/build.vi ${GITHUB_LINK}/language/build.vi
+        source ${DIR}/build.vi
     fi
 }
 
@@ -302,7 +90,7 @@ check_info(){
     then
         echo -e "${LANG_CHECK_INFO1}"
         sleep 2
-        curl -o ${DIR}/options.conf ${MCE_LINK}/options.conf
+        curl -o ${DIR}/options.conf ${GITHUB_LINK}/options.conf
     fi
     PHP_INST=`      cat ${DIR}/options.conf | grep "php_inst="       | cut -d"=" -f2`
     PHP_VER=`       cat ${DIR}/options.conf | grep "php_main="       | cut -d"=" -f2`
@@ -1168,7 +956,7 @@ download_mce(){
         then
             echo -e "${GREEN}${LANG_DOWNLOAD_MCE3}${REMOVE}"
             sleep 2
-            curl -o ${DIR}/mce_create ${MCE_LINK}/lemp/mce_create
+            curl -o ${DIR}/mce_create ${GITHUB_LINK}/lemp/mce_create
             sh ${DIR}/mce_create ${LANG}
             rm -f ${DIR}/mce_create
             mv ${DIR}/build ${BASH_DIR}/build

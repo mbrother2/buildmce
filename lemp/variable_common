@@ -20,7 +20,7 @@ MYSQL_DIR="/var/lib/mysql"
 
 # Set list support PHP
 PHP_MAIN=`php -v | head -1 | cut -d" " -f2 | cut -d"." -f1,2`
-List_PHP=(5.4 5.5 5.6 7.0 7.1 7.2)
+List_PHP=(5.4 5.5 5.6 7.0 7.1 7.2 7.3 7.4)
 
 # Set other variables
 OS_VER=`rpm -E %centos`

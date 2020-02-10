@@ -9,7 +9,7 @@ RED='\e[31m'
 REMOVE='\e[0m'
 BASH_DIR="/var/mce/script"
 USER_DIR="/var/mce/user"
-GITHUB_LINK="https://raw.githubusercontent.com/mbrother2/buildmce/master"
+GITHUB_LINK="https://raw.githubusercontent.com/mbrother2/buildmce/master/lemp"
 LANG=$1
 
 # Check option in a list

@@ -76,7 +76,30 @@ change_php(){
     then
         echo -e "${GREEN}PHP ${PHP_NEW} ${LANG_CHANGE_PHP10}${REMOVE}"
         sleep 2
-        yum -y --enablerepo=remi-php${PHP_NEW1} install php${PHP_NEW1}-php php${PHP_NEW1}-php-fpm php${PHP_NEW1}-php-devel php${PHP_NEW1}-php-curl php${PHP_NEW1}-php-exif php${PHP_NEW1}-php-fileinfo php${PHP_NEW1}-php-gd php${PHP_NEW1}-php-hash php${PHP_NEW1}-php-intl php${PHP_NEW1}-php-imap php${PHP_NEW1}-php-json php${PHP_NEW1}-php-mbstring php${PHP_NEW1}-php-mcrypt php${PHP_NEW1}-php-mysqlnd php${PHP_NEW1}-php-soap php${PHP_NEW1}-php-xml php${PHP_NEW1}-php-simplexml php${PHP_NEW1}-php-xmlrpc php${PHP_NEW1}-php-xsl php${PHP_NEW1}-php-zip php${PHP_NEW1}-php-zlib php${PHP_NEW1}-php-session php${PHP_NEW1}-php-filter
+        yum -y --enablerepo=remi-php${PHP_NEW1} install \
+            php${PHP_NEW1}-php \
+            php${PHP_NEW1}-php-fpm \
+            php${PHP_NEW1}-php-devel \
+            php${PHP_NEW1}-php-curl \
+            php${PHP_NEW1}-php-exif \
+            php${PHP_NEW1}-php-fileinfo \
+            php${PHP_NEW1}-php-gd \
+            php${PHP_NEW1}-php-hash \
+            php${PHP_NEW1}-php-intl \
+            php${PHP_NEW1}-php-imap \
+            php${PHP_NEW1}-php-json \
+            php${PHP_NEW1}-php-mbstring \
+            php${PHP_NEW1}-php-mcrypt \
+            php${PHP_NEW1}-php-mysqlnd \
+            php${PHP_NEW1}-php-soap \
+            php${PHP_NEW1}-php-xml \
+            php${PHP_NEW1}-php-simplexml \
+            php${PHP_NEW1}-php-xmlrpc \
+            php${PHP_NEW1}-php-xsl \
+            php${PHP_NEW1}-php-zip \
+            php${PHP_NEW1}-php-zlib \
+            php${PHP_NEW1}-php-session \
+            php${PHP_NEW1}-php-filter
         if [[ "${PHP_NEW1}" == "54" ]] || [[ "${PHP_NEW1}" == "55" ]]
         then
             [ ! -d ${REMI_DIR} ] && mkdir ${REMI_DIR}

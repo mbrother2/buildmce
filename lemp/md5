@@ -5,7 +5,7 @@ bf019003f66d246fbcce43020ae1ba72:1.0:backup_full
 87e79d9a8ff719f1822b2b042b38f130:1.0:change_domain
 ce748a90cc2dca170f3b45084ccd102c:1.0:change_language
 12997d56c5cc8e702b67a8e0457cfa4c:1.0:change_password
-2a94d30eaf875ca9f7badf698c384310:1.0:change_php_version
+f30dd67fe6b7db064a70846844c4dec8:1.0:change_php_version
 4a36eb53217340e13316e3c238025b21:1.0:check_service
 121b6379f38cb09d60cd33dc183f8fb9:1.0:check_value
 3cea492abcdf1ba173118792aac07f23:1.0:clear_cache

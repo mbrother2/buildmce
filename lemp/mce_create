@@ -9,7 +9,7 @@ RED='\e[31m'
 REMOVE='\e[0m'
 BASH_DIR="/var/mce/script"
 USER_DIR="/var/mce/user"
-LINK="https://files.buildmce.com/buildmce/lemp"
+GITHUB_LINK="https://raw.githubusercontent.com/mbrother2/buildmce/master"
 LANG=$1
 
 # Check option in a list
@@ -31,30 +31,30 @@ create_dir(){
 
 # Download script
 download_script(){
-    curl -o ${BASH_DIR}/advanced_option        ${LINK}/advanced_option
-    curl -o ${BASH_DIR}/auto_backup            ${LINK}/auto_backup
-    curl -o ${BASH_DIR}/backup_full            ${LINK}/backup_full
-    curl -o ${BASH_DIR}/backup_user            ${LINK}/backup_user
-    curl -o ${BASH_DIR}/change_domain          ${LINK}/change_domain
-    curl -o ${BASH_DIR}/change_language        ${LINK}/change_language
-    curl -o ${BASH_DIR}/change_password        ${LINK}/change_password
-    curl -o ${BASH_DIR}/change_php_version     ${LINK}/change_php_version
-    curl -o ${BASH_DIR}/check_service          ${LINK}/check_service
-    curl -o ${BASH_DIR}/check_value            ${LINK}/check_value
-    curl -o ${BASH_DIR}/clear_cache            ${LINK}/clear_cache
-    curl -o ${BASH_DIR}/create_database        ${LINK}/create_database
-    curl -o ${BASH_DIR}/create_full            ${LINK}/create_full
-    curl -o ${BASH_DIR}/create_ssl_letsencrypt ${LINK}/create_ssl_letsencrypt
-    curl -o ${BASH_DIR}/create_swap            ${LINK}/create_swap
-    curl -o ${BASH_DIR}/delete_user            ${LINK}/delete_user
-    curl -o ${BASH_DIR}/lang_en                ${LINK}/lang_en
-    curl -o ${BASH_DIR}/lang_vi                ${LINK}/lang_vi
-    curl -o ${BASH_DIR}/mce                    ${LINK}/mce
-    curl -o ${BASH_DIR}/rotate_log             ${LINK}/rotate_log
-    curl -o ${BASH_DIR}/restore_backup         ${LINK}/restore_backup
-    curl -o ${BASH_DIR}/show_info              ${LINK}/show_info
-    curl -o ${BASH_DIR}/update_service         ${LINK}/update_service
-    curl -o ${BASH_DIR}/variable_common        ${LINK}/variable_common
+    curl -o ${BASH_DIR}/advanced_option        ${GITHUB_LINK}/advanced_option
+    curl -o ${BASH_DIR}/auto_backup            ${GITHUB_LINK}/auto_backup
+    curl -o ${BASH_DIR}/backup_full            ${GITHUB_LINK}/backup_full
+    curl -o ${BASH_DIR}/backup_user            ${GITHUB_LINK}/backup_user
+    curl -o ${BASH_DIR}/change_domain          ${GITHUB_LINK}/change_domain
+    curl -o ${BASH_DIR}/change_language        ${GITHUB_LINK}/change_language
+    curl -o ${BASH_DIR}/change_password        ${GITHUB_LINK}/change_password
+    curl -o ${BASH_DIR}/change_php_version     ${GITHUB_LINK}/change_php_version
+    curl -o ${BASH_DIR}/check_service          ${GITHUB_LINK}/check_service
+    curl -o ${BASH_DIR}/check_value            ${GITHUB_LINK}/check_value
+    curl -o ${BASH_DIR}/clear_cache            ${GITHUB_LINK}/clear_cache
+    curl -o ${BASH_DIR}/create_database        ${GITHUB_LINK}/create_database
+    curl -o ${BASH_DIR}/create_full            ${GITHUB_LINK}/create_full
+    curl -o ${BASH_DIR}/create_ssl_letsencrypt ${GITHUB_LINK}/create_ssl_letsencrypt
+    curl -o ${BASH_DIR}/create_swap            ${GITHUB_LINK}/create_swap
+    curl -o ${BASH_DIR}/delete_user            ${GITHUB_LINK}/delete_user
+    curl -o ${BASH_DIR}/lang_en                ${GITHUB_LINK}/lang_en
+    curl -o ${BASH_DIR}/lang_vi                ${GITHUB_LINK}/lang_vi
+    curl -o ${BASH_DIR}/mce                    ${GITHUB_LINK}/mce
+    curl -o ${BASH_DIR}/rotate_log             ${GITHUB_LINK}/rotate_log
+    curl -o ${BASH_DIR}/restore_backup         ${GITHUB_LINK}/restore_backup
+    curl -o ${BASH_DIR}/show_info              ${GITHUB_LINK}/show_info
+    curl -o ${BASH_DIR}/update_service         ${GITHUB_LINK}/update_service
+    curl -o ${BASH_DIR}/variable_common        ${GITHUB_LINK}/variable_common
 }
 
 # Chmod script

@@ -3,6 +3,8 @@
 # Version: 1.0
 # Author: mbrother
 
+GITHUB_LINK="https://raw.githubusercontent.com/mbrother2/buildmce/master"
+
 source /var/mce/script/variable_common
 source ${BASH_DIR}/lang
 [[ -f /var/mce/custom/lang ]] && source /var/mce/custom/lang
@@ -11,22 +13,22 @@ source ${BASH_DIR}/lang
 update_mce(){
     echo -e " ${GREEN}${LANG_UPDATE_SERVICE1}${REMOVE}"
     sleep 2
-    HOST="files.buildmce.com"
-    if ping -c 1 -w 1 ${HOST} > /dev/null
+    curl -sI raw.githubusercontent.com >/dev/null
+    if [ $? -eq 0 ]
     then
-        curl -o ${BASH_DIR}/md5 https://${HOST}/buildmce/lemp/md5
+        curl -o ${BASH_DIR}/md5 ${GITHUB_LINK}/lemp/md5
         for i in $(cat ${BASH_DIR}/md5 | cut -d":" -f3)
         do
             if [ ! -f ${BASH_DIR}/${i} ]
             then
-                curl -o ${BASH_DIR}/$i https://${HOST}/buildmce/lemp/${i}
+                curl -o ${BASH_DIR}/$i ${GITHUB_LINK}/lemp/${i}
                 chmod 755 ${BASH_DIR}/${i}
             else
                 MD5_OLD=`md5sum ${BASH_DIR}/$i | awk '{print $1}'`
                 MD5_NEW=`cat ${BASH_DIR}/md5 | grep -w "${i}" | cut -d":" -f1`
                 if [ "${MD5_OLD}" != "${MD5_NEW}" ]
                 then
-                    curl -o ${BASH_DIR}/$i https://${HOST}/buildmce/lemp/${i}
+                    curl -o ${BASH_DIR}/$i ${GITHUB_LINK}/lemp/${i}
                     chmod 755 ${BASH_DIR}/${i}
                 fi
             fi

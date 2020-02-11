@@ -835,7 +835,7 @@ EOCONFIGINC
     
     if [ ${WEB} == "nginx" ]
     then
-        chmod -R nginx.nginx ${DEFAULT_DIR_WEB}/phpmyadmin
+        chown -R nginx.nginx ${DEFAULT_DIR_WEB}/phpmyadmin
     elif [ ${WEB} == "apache" ]
     then
         chown apache.apache /var/lib/php/session

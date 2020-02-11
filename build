@@ -456,7 +456,7 @@ install_ftp(){
     echo -e "${LANG_INSTALL_FTP}"
     sleep 2
     yum -y install epel-release
-    yum -y install proftpd
+    yum -y install ${FTP_INST}
 }
 
 # Install csf
@@ -507,7 +507,7 @@ install_all(){
     echo -e "${GREEN}${LANG_RESTART_SERVICES}${REMOVE}"
     sleep 2
     restart_services mysql
-    restart_services proftpd
+    restart_services ${FTP_INST}
     restart_services ${WEB}
     if [ "${WEB}" == "nginx" ]
     then
@@ -516,7 +516,8 @@ install_all(){
 
     echo ""
     echo -e "${GREEN}${LANG_START_ON_BOOT}${REMOVE}"
-    start_on_boot proftpd
+    start_on_boot mysql
+    start_on_boot ${FTP_INST}
     start_on_boot ${WEB}
     if [ "${WEB}" == "nginx" ]
     then
@@ -934,10 +935,10 @@ check_services(){
     CHECK_PHP_INSTALLED=`command -v php | wc -l`
     CHECK_WEB_INSTALLED=`command -v ${WEB} | wc -l`
     CHECK_SQL_INSTALLED=`command -v mysql | wc -l`
-    CHECK_FTP_INSTALLED=`command -v proftpd | wc -l`
+    CHECK_FTP_INSTALLED=`command -v ${FTP_INST} | wc -l`
     CHECK_WEB_RUNNING=`pidof ${WEB} | wc -l`
     CHECK_SQL_RUNNING=`pidof mysqld | wc -l`
-    CHECK_FTP_RUNNING=`pidof proftpd | wc -l`
+    CHECK_FTP_RUNNING=`pidof ${FTP_INST} | wc -l`
 
     PHP_INSTALLED=`check_exist ${CHECK_PHP_INSTALLED}`
     WEB_INSTALLED=`check_exist ${CHECK_WEB_INSTALLED}`
@@ -1077,7 +1078,7 @@ case ${OPTION} in
     all) install_all;;
     php) install_php;;
     mysql) install_mariadb; config_mysql; restart_services mysql;;
-    ftp) install_ftp; restart_services proftpd;;
+    ftp) install_ftp; restart_services ${FTP_INST};;
     httpd) install_web; restart_services httpd;;
     nginx) install_web; restart_services nginx;;
     csf) install_csf;;

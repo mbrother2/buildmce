@@ -3,6 +3,14 @@
 # Version: 1.0
 # Author: mbrother
 
+WORDPRESS_VER1="latest"
+WORDPRESS_VER1_LANG="${LANG_CREATE_HOST15}"
+WORDPRESS_VER2="5.2.5"
+JOOMLA_VER1="3.9.15"
+JOOMLA_VER2="2.5.28"
+OPENCART_VER1="3.0.3.2"
+OPENCART_VER2="2.3.0.2"
+
 source /var/mce/script/variable_common
 source ${BASH_DIR}/lang
 [[ -f /var/mce/custom/lang ]] && source /var/mce/custom/lang
@@ -399,14 +407,6 @@ opencart_install(){
 
 # Install Source Code
 install_source_code(){
-    WORDPRESS_VER1="latest"
-    WORDPRESS_VER1_LANG="${LANG_CREATE_HOST15}"
-    WORDPRESS_VER2="4.9.10"
-    JOOMLA_VER1="3.9.6"
-    JOOMLA_VER2="2.5.28"
-    OPENCART_VER1="3.0.3.2"
-    OPENCART_VER2="2.3.0.2"
-
     if [ ! -d ${SOURCE_DIR} ]
     then
         mkdir ${SOURCE_DIR}

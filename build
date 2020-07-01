@@ -4,9 +4,6 @@
 # Author: mbrother
 
 # Set variables
-GREEN='\e[92m'
-RED='\e[31m'
-REMOVE='\e[0m'
 OS_VER=`rpm -E %centos`
 OS_ARCH=`uname -m`
 IPADDRESS=`ip route get 1 | awk '{print $NF;exit}'`
@@ -17,8 +14,50 @@ CPANEL="/usr/local/cpanel/cpanel"
 DIRECTADMIN="/usr/local/directadmin/custombuild/build"
 PLESK="/usr/local/psa/version"
 GITHUB_LINK="https://raw.githubusercontent.com/mbrother2/buildmce/master"
+LOG_FILE="/var/mce/log/install.log"
 List_PHP=(5.4 5.5 5.6 7.0 7.1 7.2 7.3 7.4)
 List_SQL=(10.0 10.1 10.2 10.3 10.4)
+
+# Color variables
+REMOVE='\e[0m'
+RED='\e[31m'
+GREEN='\e[32m'
+YELLOW='\e[33m'
+WHITE='\e[39m'
+
+# Show & write log
+_print_log(){
+    if [ ${SUM_ARG} -eq ${OPTIND} ]
+    then
+        printf "$1${OPTARG}${REMOVE}""\n" | tee -a ${LOG_FILE}
+    else
+        printf "$1${OPTARG}${REMOVE}" | tee -a ${LOG_FILE}
+    fi
+}
+
+# Main function
+_show_log(){
+    OPTIND=1
+    SUM_ARG=$(($#+1))
+    while getopts 'r:g:y:w:d' OPTION
+    do
+      case ${OPTION} in
+        d)  _print_log "`date "+[ %d/%m/%Y %H:%M:%S ]"`" ;;
+        r)  _print_log "${RED}" ;;
+        g)  _print_log "${GREEN}" ;;
+        y)  _print_log "${YELLOW}" ;;
+        w)  _print_log "${WHITE}" ;;
+      esac
+    done
+}
+
+# Create necessary directory
+create_dir(){
+    if [ ! -d /var/mce/log ]
+    then
+        mkdir -p /var/mce/log
+    fi
+}
 
 # Multi languages
 multi_lang(){
@@ -35,11 +74,12 @@ multi_lang(){
 
 # Check if cPanel, DirectAdmin, Plesk has installed before
 check_control_panel(){
+    _show_log -d -g " [INFO]" -w " Checking if cPanel, DirectAdmin, Plesk has installed before..."
     if [[ -f ${CPANEL} ]] || [[ -f ${DIRECTADMIN} ]] || [[ -f ${PLESK} ]]
     then
-        echo -e "${RED}${LANG_CHECK_CONTROL_PANEL1}${REMOVE}"
-        echo "${LANG_CHECK_CONTROL_PANEL2}"
-        exit
+        _show_log -d -r " [FAIL]" -w "${LANG_CHECK_CONTROL_PANEL1}"
+        _show_log -d -r " [FAIL]" -w "${LANG_CHECK_CONTROL_PANEL2}"
+        exit 1
     fi
 }
 
@@ -1060,6 +1100,9 @@ echo " 2. Tiếng Việt"
 choose_languague
 
 multi_lang
+
+# Create directory
+create_dir
 
 # Check control panel
 check_control_panel

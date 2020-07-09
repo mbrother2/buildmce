@@ -4,6 +4,8 @@
 # Author: mbrother
 
 # Set variables
+SCRIPT_NAME=$0
+OPTIONS="$@"
 OS_VER=`rpm -E %centos`
 OS_ARCH=`uname -m`
 IPADDRESS=`ip route get 1 | awk '{print $NF;exit}'`
@@ -15,8 +17,23 @@ DIRECTADMIN="/usr/local/directadmin/custombuild/build"
 PLESK="/usr/local/psa/version"
 GITHUB_LINK="https://raw.githubusercontent.com/mbrother2/buildmce/master"
 LOG_FILE="/var/mce/log/install.log"
-List_PHP=(5.4 5.5 5.6 7.0 7.1 7.2 7.3 7.4)
+DEFAULT_DIR_WEB="/var/www/html"
+REMI_DIR="/etc/opt/remi"
+VHOST_DIR="/etc/nginx/conf.d"
+List_PHP=(all 5.4 5.5 5.6 7.0 7.1 7.2 7.3 7.4)
 List_SQL=(10.0 10.1 10.2 10.3 10.4)
+List_FTP=(proftpd pure-ftpd)
+List_WEB=(nginx openlitespeed)
+List_EXTRA=(all csf phpmyadmin)
+List_CONF=(all php sql web phpmyadmin)
+PMD_VERSION_MAX="5.0.2"
+PMD_VERSION_COMMON="4.9.5"
+
+# Default services
+DEFAULT_FTP_SERVER="pure-ftpd"
+DEFAULT_PHP_VERSION="7.4"
+DEFAULT_SQL_SERVER="10.4"
+DEFAULT_WEB_SERVER="nginx"
 
 # Color variables
 REMOVE='\e[0m'
@@ -52,15 +69,19 @@ _show_log(){
 }
 
 # Create necessary directory
-create_dir(){
+_create_dir(){
     if [ ! -d /var/mce/log ]
     then
         mkdir -p /var/mce/log
     fi
+    if [ ! -d ${DEFAULT_DIR_WEB} ]
+    then
+        mkdir -p ${DEFAULT_DIR_WEB}
+    fi
 }
 
 # Multi languages
-multi_lang(){
+_multi_lang(){
     if [ ${CHOOSE_LANG} -eq 1 ]
     then
         curl -o ${DIR}/build.en ${GITHUB_LINK}/language/build.en
@@ -73,202 +94,155 @@ multi_lang(){
 }
 
 # Check if cPanel, DirectAdmin, Plesk has installed before
-check_control_panel(){
+_check_control_panel(){
     _show_log -d -g " [INFO]" -w " Checking if cPanel, DirectAdmin, Plesk has installed before..."
     if [[ -f ${CPANEL} ]] || [[ -f ${DIRECTADMIN} ]] || [[ -f ${PLESK} ]]
     then
-        _show_log -d -r " [FAIL]" -w "${LANG_CHECK_CONTROL_PANEL1}"
-        _show_log -d -r " [FAIL]" -w "${LANG_CHECK_CONTROL_PANEL2}"
+        _show_log -d -r " [FAIL]" -w " ${LANG__check_control_panel1}"
+        _show_log -d -r " [FAIL]" -w " ${LANG__check_control_panel2}"
         exit 1
+    else
+        _show_log -d -g " [INFO]" -w " No control panel detected. Continue!"
     fi
 }
 
 # Check option in a list
-check_list(){
+_check_value_in_list(){
+    NAME=$1
+    VALUE=$2
+    List_VALUE=($3)
     false
-    VALUE=$1
-    List=($2)
-    for i in ${List[*]}
+    for i_CHECK_VALUE in ${List_VALUE[*]}
     do
-        [[ "${i}" == "${VALUE}" ]] && return 0
+        if [ "${i_CHECK_VALUE}" == "${VALUE}" ]
+        then
+            true
+            break
+        else
+            false
+        fi
     done
+    if [ $? -ne 0 ]
+    then
+        _show_log -d -r " [FAIL]" -w " Not support $1: $2. Only support $1: $(echo ${List_VALUE[*]})"
+        exit 1
+    fi
 }
 
-yes_no(){
+_yes_no(){
     if [ "${1}" != "Yes" ]
     then
-        echo -e "${LANG_YES_NO}"
+        echo -e "${LANG_yes_no}"
     fi
 }
 
-check_options(){
-    if [ "${OPTION}" == "--help" ]
+_check_installed_service(){
+    CHECK_SERVICE=`command -v $1`
+    if [ "$2" == "new"  ]
     then
-        echo -e "${LANG_CHECK_OPTIONS1}"
-        echo "${LANG_CHECK_OPTIONS2}"
-        echo ""
-        echo "${LANG_CHECK_OPTIONS3}"
-        echo "${LANG_CHECK_OPTIONS4}"
-        echo "${LANG_CHECK_OPTIONS5}"
-        echo "${LANG_CHECK_OPTIONS6}"
-        echo "${LANG_CHECK_OPTIONS7}"
-        echo "${LANG_CHECK_OPTIONS8}"
-        echo "${LANG_CHECK_OPTIONS9}"
-        echo "${LANG_CHECK_OPTIONS10}"
-        exit
+        if [ -z ${CHECK_SERVICE} ]
+        then
+            _show_log -d -r " [FAIL]" -w " Can not install $1. Exit"
+            exit 1
+        else
+            _show_log -d -g " [INFO]" -w " Install $1 sucessful!"
+        fi
+    else
+        if [ -z ${CHECK_SERVICE} ]
+        then
+            _show_log -d -r " [FAIL]" -w " $1 is not installed!"
+            return 1
+        else
+            _show_log -d -g " [INFO]" -w " $1 is installed!"
+            return 0
+        fi
     fi
-    List_options=(php mysql ftp httpd nginx csf all --help)
-    check_list "${OPTION}" "${List_options[*]}"
-    if [ $? -eq 1 ]
+}
+
+_detect_web_server(){
+    _show_log -d -g " [INFO]" -w " Detecting web server..."
+    CHECK_NGINX_RUNNING=`_check_service -r nginx`
+    if [ ${CHECK_NGINX_RUNNING} -eq 1 ]
     then
-        echo -e "${LANG_CHECK_OPTIONS11}"
-        exit
+        _show_log -d -g " [INFO]" -w " Detected nginx running."
+        return 11
+    else
+        CHECK_OPL_RUNNING=`_check_service -r litespeed`
+        if [ ${CHECK_OPL_RUNNING} -eq 1 ]
+        then
+            _show_log -d -g " [INFO]" -w " Detected openlitespeed running."
+            return 21
+        else
+            CHECK_NGINX_INSTALLED=`_check_service -i nginx`
+            if [ ${CHECK_NGINX_INSTALLED} -eq 1 ]
+            then
+                _show_log -d -g " [INFO]" -w " Detected nginx installed but NOT running."
+                return 10
+            else
+                CHECK_OPL_INSTALLED=`_check_service -i openlitespeed`
+                if [ ${CHECK_NGINX_INSTALLED} -eq 1 ]
+                then
+                    _show_log -d -g " [INFO]" -w " Detected openlitespeed installed but NOT running."
+                    return 20
+                else
+                    return 0
+                fi
+            fi    
+        fi      
     fi
 }
 
 # Check Information
-check_info(){
-    if [ ! -f ${DIR}/options.conf ]
+_check_info(){
+    _show_log -d -g " [INFO]" -w " Checking input options..."
+    if [ "${INSTALL_ALL}" == "1" ]
     then
-        echo -e "${LANG_CHECK_INFO1}"
-        sleep 2
-        curl -o ${DIR}/options.conf ${GITHUB_LINK}/options.conf
+        GET_FTP_SERVER=${DEFAULT_FTP_SERVER}
+        GET_PHP_VERSION=${DEFAULT_PHP_VERSION}
+        GET_SQL_SERVER=${DEFAULT_SQL_SERVER}
+        GET_WEB_SERVER=${DEFAULT_WEB_SERVER}
+        EXTRA_SERVICE="all"
     fi
-    PHP_INST=`      cat ${DIR}/options.conf | grep "php_inst="       | cut -d"=" -f2`
-    PHP_VER=`       cat ${DIR}/options.conf | grep "php_main="       | cut -d"=" -f2`
-    MYSQL_VER=`     cat ${DIR}/options.conf | grep "mariadb="        | cut -d"=" -f2`
-    MYSQL_INST=`    cat ${DIR}/options.conf | grep "mysql_inst="     | cut -d"=" -f2`
-    WEB=`           cat ${DIR}/options.conf | grep "webserver="      | cut -d"=" -f2`
-    PHPMYADMIN_VER=`cat ${DIR}/options.conf | grep "phpmyadmin_ver=" | cut -d"=" -f2`
-    FTP_INST=`      cat ${DIR}/options.conf | grep "ftp_inst="       | cut -d"=" -f2`
-    AUTO_CONFIG=`   cat ${DIR}/options.conf | grep "auto_config="    | cut -d"=" -f2`
-    SYNC_TIME=`     cat ${DIR}/options.conf | grep "sync_time="      | cut -d"=" -f2`
-    TIME_ZONE=`     cat ${DIR}/options.conf | grep "time_zone="      | cut -d"=" -f2`
-    UPDATE_SYS=`    cat ${DIR}/options.conf | grep "update_sys="     | cut -d"=" -f2`
-    CSF_INST=`      cat ${DIR}/options.conf | grep "csf_inst="       | cut -d"=" -f2`
-    OPTION_VESION="${LANG_CHECK_INFO2}"
-
-    if [[ "${OPTION}" == "web" ]] || [[ "${OPTION}" == "all" ]]
+    if [ ! -z "${GET_FTP_SERVER}" ]
     then
-        List_WEB=(httpd nginx no)
-        check_list "${WEB}" "${List_WEB[*]}"
-        if [ $? -eq 1 ]
-        then
-            echo -e "${LANG_CHECK_INFO3} \"${RED}${WEB}${REMOVE}\""
-            echo -e "${LANG_CHECK_INFO4}"
-            exit
-        fi
+        _check_value_in_list "FTP server" "${GET_FTP_SERVER}" "${List_FTP[*]}"
+        echo "FTP server    : ${GET_FTP_SERVER}" >> /tmp/show_info.txt
     fi
-
-    if [[ "${OPTION}" == "php" ]] || [[ "${OPTION}" == "all" ]]
+    if [ ! -z "${GET_PHP_VERSION}" ]
     then
-        List_PHP_INST=(yes no all)
-        check_list "${PHP_INST}" "${List_PHP_INST[*]}"
-        if [ $? -eq 1 ]
-        then
-            echo -e "${LANG_CHECK_INFO5} \"${RED}${PHP_INST}${REMOVE}\""
-            echo -e "${LANG_CHECK_INFO6}"
-            exit
-        fi
-        if [ "${PHP_INST}" != "no" ]
-        then
-            check_list "${PHP_VER}" "${List_PHP[*]}"
-            if [ $? -eq 1 ]
-            then
-                echo -e "${LANG_CHECK_INFO7} \"${RED}${PHP_VER}${REMOVE}\""
-                echo -e "${LANG_CHECK_INFO8}"
-                exit
-            fi
-        fi
-        if [ "${PHP_INST}" == "all" ]
-        then
-            OPTION_VESION="${LANG_CHECK_INFO9}"
-        else
-            OPTION_VESION="${PHP_VER}"
-        fi
+        _check_value_in_list "PHP version" "${GET_PHP_VERSION}" "${List_PHP[*]}"
+        echo "PHP version   : ${GET_PHP_VERSION}" >> /tmp/show_info.txt
     fi
-
-    if [[ "${OPTION}" == "mysql" ]] || [[ "${OPTION}" == "all" ]]
+    if [ ! -z "${GET_SQL_SERVER}" ]
     then
-        List_MYSQL_INST=(mariadb no)
-        check_list "${MYSQL_INST}" "${List_MYSQL_INST[*]}"
-        if [ $? -eq 1 ]
-        then
-            echo -e "${LANG_CHECK_INFO10}"
-            exit
-        fi
-        if [ "${MYSQL_INST}" != "no" ]
-        then
-            check_list "${MYSQL_VER}" "${List_SQL[*]}"
-            if [ $? -eq 1 ]
-            then
-                echo -e "${LANG_CHECK_INFO11} \"${RED}${MYSQL_VER}${REMOVE}\""
-                echo -e "${LANG_CHECK_INFO12}"
-                exit
-            fi
-        fi
-        OPTION_VESION="${MYSQL_VER}"
+        _check_value_in_list "SQL version" "${GET_SQL_SERVER}" "${List_SQL[*]}"
+        echo "SQL version   : ${GET_SQL_SERVER}" >> /tmp/show_info.txt
     fi
-
-    if [ ! -f /usr/share/zoneinfo/${TIME_ZONE} ]
+    if [ ! -z "${GET_WEB_SERVER}" ]
     then
-        if [ ${CHOOSE_LANG} -eq 1 ]
-        then
-            TIME_ZONE_DEFAULT="America/New_York"
-        elif [ ${CHOOSE_LANG} -eq 2 ]
-        then
-            TIME_ZONE_DEFAULT="Asia/Ho_Chi_Minh"
-        fi
-        echo -e "Time zone \"${RED}${TIME_ZONE}${REMOVE}\" ${LANG_CHECK_INFO13} ${GREEN}${TIME_ZONE_DEFAULT}${REMOVE}"
-        TIME_ZONE=${TIME_ZONE_DEFAULT}
-        echo "${LANG_CHECK_INFO14}"
+        _check_value_in_list "Web server" "${GET_WEB_SERVER}" "${List_WEB[*]}"
+        echo "Web server    : ${GET_WEB_SERVER}" >> /tmp/show_info.txt
     fi
-}
-
-# Show information will be install
-show_info_install(){
-    echo "${LANG_SHOW_INFO_INSTALL1}"
-    if [ "${OPTION}" != "all" ]
+    if [ ! -z "${EXTRA_SERVICE}" ]
     then
-        OPTION_UPPER=`echo ${OPTION} | tr '[:lower:]' '[:upper:]'`
-        echo " ${OPTION_UPPER}: ${OPTION_VESION}"
-    else
-        if [ "${PHP_INST}" = "all" ]
-        then
-            echo "${LANG_SHOW_INFO_INSTALL2}" > /tmp/show_info_install.txt
-        elif [ "${PHP_INST}" != "no" ]
-        then
-            echo " PHP: ${PHP_VER}" > /tmp/show_info_install.txt
-        fi
-        [[ "${MYSQL_INST}" != "no" ]] && echo " ${MYSQL_INST}: ${MYSQL_VER}" >> /tmp/show_info_install.txt
-        [[ "${WEB}" != "no" ]] && echo " ${WEB}: ${LANG_SHOW_INFO_INSTALL3}" >> /tmp/show_info_install.txt
-        [[ "${PHPMYADMIN_VER}" != "no" ]] && echo " phpMyAdmin: ${PHPMYADMIN_VER}" >> /tmp/show_info_install.txt
-        [[ "${FTP_INST}" != "no" ]] && echo "${FTP_INST}: ${LANG_SHOW_INFO_INSTALL3}" >> /tmp/show_info_install.txt
-        [[ "${CSF_INST}" != "no" ]] && echo " csf: ${LANG_SHOW_INFO_INSTALL3}" >> /tmp/show_info_install.txt
-        echo " Auto_Config: ${AUTO_CONFIG}" >> /tmp/show_info_install.txt
-        echo " Sync_time: ${SYNC_TIME}" >> /tmp/show_info_install.txt
-        [[ "${SYNC_TIME}" != "no" ]] && echo " Time_zone: ${TIME_ZONE}" >> /tmp/show_info_install.txt
-        echo " Update_system: ${UPDATE_SYS}" >> /tmp/show_info_install.txt
-        cat /tmp/show_info_install.txt |  column -t
-        rm -f /tmp/show_info_install.txt
+        cat /tmp/extra_service.txt | sort | uniq > /tmp/extra_service_min.txt
+        for i_EXTRA_SERVICE in $(cat /tmp/extra_service_min.txt)
+        do
+            _check_value_in_list "Extra service" "${i_EXTRA_SERVICE}" "${List_EXTRA[*]}"
+        done
+        echo "Extra services: $(cat /tmp/extra_service_min.txt | sed ':a;N;$!ba;s/\n/,/g')" >> /tmp/show_info.txt
     fi
+    _show_log -d -g " [INFO]" -w " Check input options sucessful!"
+    _show_log -d -g " [INFO]" -w " Run command: ${SCRIPT_NAME} ${OPTIONS}"
     echo ""
-
-    echo "${LANG_SHOW_INFO_INSTALL4}"
-    echo -e "${LANG_SHOW_INFO_INSTALL5}"
-    read -p "${LANG_SHOW_INFO_INSTALL6}" CHOICE
-    while [ "${CHOICE}" != "Yes" ]
-    do
-        yes_no ${CHOICE}
-        read -p "${LANG_SHOW_INFO_INSTALL6}" CHOICE
-    done
+    cat /tmp/show_info.txt
 }
 
 # Pre-install
-pre_install(){
+_pre_install(){
     # Check DNS
     echo ""
-    echo -e "${LANG_PRE_INSTALL}"
+    _show_log -d -g " [INFO]" -w " Installing require packages..."
     sleep 2
     sed -i 's/nameserver/#nameserver/g' /etc/resolv.conf
     echo "nameserver 8.8.8.8" >> /etc/resolv.conf
@@ -284,17 +258,18 @@ pre_install(){
     fi
 
     mv /etc/selinux/config /etc/selinux/config.orig
-    cat /etc/selinux/config.orig | sed 's/SELINUX/#SELINUX/g' > /etc/selinux/config
+    cat /etc/selinux/config.orig | sed 's/^SELINUX/#SELINUX/g' > /etc/selinux/config
     echo "SELINUX=disabled" >> /etc/selinux/config
     echo "SELINUXTYPE=targeted" >> /etc/selinux/config
 
     ##Install wget unzip
-    yum -y install wget unzip
+    yum -y install wget unzip epel-release
+    _show_log -d -g " [INFO]" -w " Install require packages sucessful!"
 }
 
 # Let's go
-sync_time(){
-    ##Sync Time
+_sync_time(){
+    _show_log -d -g " [INFO]" -w " Syncing time..."
     yum -y install ntp
     rm -f /etc/localtime
     ln -s /usr/share/zoneinfo/${TIME_ZONE} /etc/localtime
@@ -307,321 +282,353 @@ sync_time(){
         chkconfig ntpd on
     fi
     echo ""
-    echo -e "${LANG_SYNC_TIME}"
+    echo -e "${LANG__sync_time}"
+    _show_log -d -g " [INFO]" -w " Waitting for 15 seconds..."
     sleep 15
+    _show_log -d -g " [INFO]" -w " Sync time sucessful!"
 }
 
-start_time(){
+_start_time(){
     RIGHT_NOW=`date +"%T %d-%m-%Y"`
     BEGIN_TIME=`date +%s`
-    echo -e "${RED}[ ${RIGHT_NOW} ]${REMOVE}${LANG_START_TIME}"
-sleep 2
+    echo -e "${RED}[ ${RIGHT_NOW} ]${REMOVE}${LANG__start_time}"
+    sleep 1
 }
 
 # Update system
-update_sys(){
-    ##Update system
-    if [ ${UPDATE_SYS} == "yes" ]
-    then
-        echo ""
-        echo -e "${LANG_UPDATE_SYS}"
-        sleep 2
-        yum -y update
-    fi
+_update_sys(){
+    _show_log -d -g " [INFO]" -w " Updating system..."
+    sleep 1
+    yum -y update
+    _show_log -d -g " [INFO]" -w " Update system sucessful!"
 }
 
 #Install Services
 ##Install PHP
-install_php(){
+_install_php_single(){
+    PHP_VERSION=$1
     echo ""
-    echo -e "${LANG_INSTALL_PHP}"
-    sleep 2
-    PHP_VER1=`echo ${PHP_VER} | sed 's/\.//'`
-    yum -y install epel-release centos-release-scl-rh
-    yum -y --enablerepo=centos-sclo-rh-testing install devtoolset-6-gcc-c++
-    rpm -Uvh http://rpms.remirepo.net/enterprise/remi-release-${OS_VER}.rpm
-    yum -y --enablerepo=remi-php${PHP_VER1} install \
-        php \
-        php-fpm \
-        php-devel \
-        php-curl \
-        php-exif \
-        php-fileinfo \
-        php-gd \
-        php-hash \
-        php-intl \
-        php-imap \
-        php-json \
-        php-mbstring \
-        php-mcrypt \
-        php-mysqlnd \
-        php-soap \
-        php-xml \
-        php-simplexml \
-        php-xmlrpc \
-        php-xsl \
-        php-zip \
-        php-zlib \
-        php-session \
-        php-filter
-
-    if [ "${PHP_INST}" == "all" ]
+    _show_log -d -g " [INFO]" -w " Installing PHP ${PHP_VERSION}..."
+    if [ "${WEB_SERVER}" == "nginx" ]
+        then
+            PHP_ENABLE_REPO="--enablerepo=remi-php${PHP_VERSION}"
+        else
+            PHP_ENABLE_REPO=""
+        fi
+    yum -y ${PHP_ENABLE_REPO} install \
+        ${PHP_PREFIX}${PHP_VERSION}${PHP_SUFFIX} \
+        ${PHP_PREFIX}${PHP_VERSION}${PHP_SUFFIX}-fpm \
+        ${PHP_PREFIX}${PHP_VERSION}${PHP_SUFFIX}-devel \
+        ${PHP_PREFIX}${PHP_VERSION}${PHP_SUFFIX}-curl \
+        ${PHP_PREFIX}${PHP_VERSION}${PHP_SUFFIX}-exif \
+        ${PHP_PREFIX}${PHP_VERSION}${PHP_SUFFIX}-fileinfo \
+        ${PHP_PREFIX}${PHP_VERSION}${PHP_SUFFIX}-gd \
+        ${PHP_PREFIX}${PHP_VERSION}${PHP_SUFFIX}-hash \
+        ${PHP_PREFIX}${PHP_VERSION}${PHP_SUFFIX}-intl \
+        ${PHP_PREFIX}${PHP_VERSION}${PHP_SUFFIX}-imap \
+        ${PHP_PREFIX}${PHP_VERSION}${PHP_SUFFIX}-json \
+        ${PHP_PREFIX}${PHP_VERSION}${PHP_SUFFIX}-mbstring \
+        ${PHP_PREFIX}${PHP_VERSION}${PHP_SUFFIX}-mcrypt \
+        ${PHP_PREFIX}${PHP_VERSION}${PHP_SUFFIX}-mysqlnd \
+        ${PHP_PREFIX}${PHP_VERSION}${PHP_SUFFIX}-soap \
+        ${PHP_PREFIX}${PHP_VERSION}${PHP_SUFFIX}-xml \
+        ${PHP_PREFIX}${PHP_VERSION}${PHP_SUFFIX}-simplexml \
+        ${PHP_PREFIX}${PHP_VERSION}${PHP_SUFFIX}-xmlrpc \
+        ${PHP_PREFIX}${PHP_VERSION}${PHP_SUFFIX}-xsl \
+        ${PHP_PREFIX}${PHP_VERSION}${PHP_SUFFIX}-zip \
+        ${PHP_PREFIX}${PHP_VERSION}${PHP_SUFFIX}-zlib \
+        ${PHP_PREFIX}${PHP_VERSION}${PHP_SUFFIX}-session \
+        ${PHP_PREFIX}${PHP_VERSION}${PHP_SUFFIX}-filter
+    
+    if [ "${WEB_SERVER}" == "nginx" ]
     then
-        for i in $(echo ${List_PHP[*]} | sed "s/${PHP_VER}//")
-        do
-            PHP_VER2=`echo ${i} | sed 's/\.//'`
-            if [ "${PHP_VER2}" != "${PHP_VER1}" ]
+        if [[ "${PHP_VERSION}" == "54" ]] || [[ "${PHP_VERSION}" == "55" ]]
+        then
+            REMI_DIR="/etc/opt/remi"
+            [ ! -d ${REMI_DIR} ] && mkdir ${REMI_DIR}
+            ln -s /opt/remi/php${PHP_VERSION}/root/etc ${REMI_DIR}/php${PHP_VERSION}
+        fi
+    fi
+}
+
+_install_php(){
+    if [ ! -z "${GET_PHP_VERSION}" ]
+    then
+        echo ""
+        _show_log -d -g " [INFO]" -w " Installing PHP..."
+        sleep 1
+        _detect_web_server
+        CHECK_WEB_SERVER=$?
+        if [ ${CHECK_WEB_SERVER} -eq 11 ]
+        then
+            WEB_SERVER="nginx"
+        elif [ ${CHECK_WEB_SERVER} -eq 21 ]
+        then
+            WEB_SERVER="openlitespeed"
+        else
+            _show_log -d -g " [INFO]" -w " Can not detect web server is running!"
+            echo ""
+            echo "Do you want to install php for nginx or lsphp for openlitespeed?"
+            echo "1. nginx"
+            echo "2. openlitespeed"
+            read -p "Your choice: " WEB_SERVER_CHOICE
+            until [[ "${WEB_SERVER_CHOICE}" == 1 ]] || [[ "${WEB_SERVER_CHOICE}" == 2 ]]
+            do
+                echo "Please choose 1 or 2!"
+                read -p "Your choice: " WEB_SERVER_CHOICE
+            done
+            if [ ${WEB_SERVER_CHOICE} -eq 1 ]
             then
-                yum -y --enablerepo=remi-php${PHP_VER2} install \
-                    php${PHP_VER2}-php \
-                    php${PHP_VER2}-php-fpm \
-                    php${PHP_VER2}-php-devel \
-                    php${PHP_VER2}-php-curl \
-                    php${PHP_VER2}-php-exif \
-                    php${PHP_VER2}-php-fileinfo \
-                    php${PHP_VER2}-php-gd \
-                    php${PHP_VER2}-php-hash \
-                    php${PHP_VER2}-php-intl \
-                    php${PHP_VER2}-php-imap \
-                    php${PHP_VER2}-php-json \
-                    php${PHP_VER2}-php-mbstring \
-                    php${PHP_VER2}-php-mcrypt \
-                    php${PHP_VER2}-php-mysqlnd \
-                    php${PHP_VER2}-php-soap \
-                    php${PHP_VER2}-php-xml \
-                    php${PHP_VER2}-php-simplexml \
-                    php${PHP_VER2}-php-xmlrpc \
-                    php${PHP_VER2}-php-xsl \
-                    php${PHP_VER2}-php-zip \
-                    php${PHP_VER2}-php-zlib \
-                    php${PHP_VER2}-php-session \
-                    php${PHP_VER2}-php-filter
-                if [[ "${PHP_VER2}" == "54" ]] || [[ "${PHP_VER2}" == "55" ]]
-                then
-                    REMI_DIR="/etc/opt/remi"
-                    [ ! -d ${REMI_DIR} ] && mkdir ${REMI_DIR}
-                    ln -s /opt/remi/php${PHP_VER2}/root/etc ${REMI_DIR}/php${PHP_VER2}
-                fi
+                WEB_SERVER="nginx"
+            else
+                WEB_SERVER="openlitespeed"
             fi
-        done
+            _show_log -d -g " [INFO]" -w " You choose install PHP for ${WEB_SERVER}"
+        fi
+        if [ "${WEB_SERVER}" == "nginx" ]
+        then
+            PHP_PREFIX="php"
+            PHP_SUFFIX="-php"
+            yum -y install centos-release-scl-rh
+            yum -y --enablerepo=centos-sclo-rh-testing install devtoolset-6-gcc-c++
+            rpm -Uvh http://rpms.remirepo.net/enterprise/remi-release-${OS_VER}.rpm
+        else
+            PHP_PREFIX="lsphp"
+            PHP_SUFFIX=""
+            rpm -ivh http://rpms.litespeedtech.com/centos/litespeed-repo-1.1-1.el${OS_VER}.noarch.rpm
+        fi
+
+        if [ "${GET_PHP_VERSION}" == "all" ]
+        then
+            for i_INSTALL_PHP in $(echo ${List_PHP[*]} | sed 's/all//')
+            do
+                PHP_VERSION_REMI=`echo ${i_INSTALL_PHP} | sed 's/\.//'`
+                _install_php_single "${PHP_VERSION_REMI}"           
+                echo ""
+                _check_installed_service "php${PHP_VERSION_REMI}" "new"
+            done
+        else
+            PHP_VERSION_REMI=`echo ${GET_PHP_VERSION} | sed 's/\.//'`
+            _install_php_single "${PHP_VERSION_REMI}"
+            echo ""
+            _check_installed_service "php${PHP_VERSION_REMI}" "new"
+        fi
     fi
 }
 
 # Install webserver
-install_web(){
-    echo ""
-    echo -e "${LANG_INSTALL_WEB}"
-    sleep 2
-    if [ "${OPTION}" == "httpd" ]
+_install_web(){
+    if [ ! -z "${GET_WEB_SERVER}" ]
     then
-        WEB="httpd"
-    elif [ "${OPTION}" == "nginx" ]
-    then
-        WEB="nginx"
-    fi
-    if [ "${WEB}" == "nginx" ]
-    then
-        cat > "/etc/yum.repos.d/nginx.repo" <<EONGINXREPO
+        echo ""
+        _show_log -d -g " [INFO]" -w " Installing Web server..."
+        sleep 1
+        if [ "${GET_WEB_SERVER}" == "nginx" ]
+        then
+            cat > "/etc/yum.repos.d/nginx.repo" <<EONGINXREPO
 [nginx]
 name=nginx repo
 baseurl=http://nginx.org/packages/centos/\$releasever/\$basearch/
 gpgcheck=0
 enabled=1
 EONGINXREPO
+        
+            yum -y install nginx
+        elif [ "${GET_WEB_SERVER}" == "openlitespeed" ]
+        then
+            rpm -ivh http://rpms.litespeedtech.com/centos/litespeed-repo-1.1-1.el${OS_VER}.noarch.rpm
+            yum -y install openlitespeed
+            if [ ! -f /usr/local/bin/openlitespeed ]
+            then
+                ln -s /usr/local/lsws/bin/openlitespeed /usr/local/bin/openlitespeed
+            fi
+        fi
+        echo ""
+        _check_installed_service "${GET_WEB_SERVER}" "new"
     fi
-
-    yum -y install ${WEB}
 }
 
 ##Install MariaDB
-install_mariadb(){
-    echo ""
-    echo -e "${LANG_INSTALL_MARIADB1}"
-    sleep 2
-    # Check yum.mariadb.org
-    HOST="yum.mariadb.org"
-    if ping -c 1 -w 1 ${HOST} > /dev/null
+_install_mariadb(){    
+    if [ ! -z "${GET_SQL_SERVER}" ]
     then
-        if [ "${OS_ARCH}" == "x86_64" ]
+        _check_service "mysql"
+        if [ $? -eq 0 ]
         then
-            OS_ARCH1="amd64"
-        elif [ "${OS_ARCH}" == "i686" ]
-        then
-            OS_ARCH1="x86"
-        fi
-        cat > "/etc/yum.repos.d/MariaDB.repo" <<EOMARIADBREPO
+            echo ""
+            _show_log -d -g " [INFO]" -w " MySQL installed. Do not install new!"
+            NOT_CONFIG_MYSQL=1
+        else
+            echo ""
+            _show_log -d -g " [INFO]" -w " Installing SQL server..."
+            sleep 1
+            # Check yum.mariadb.org
+            HOST="yum.mariadb.org"
+            if ping -c 1 -w 1 ${HOST} > /dev/null
+            then
+                if [ "${OS_ARCH}" == "x86_64" ]
+                then
+                    OS_ARCH1="amd64"
+                elif [ "${OS_ARCH}" == "i686" ]
+                then
+                    OS_ARCH1="x86"
+                fi
+                cat > "/etc/yum.repos.d/MariaDB.repo" <<EOMARIADBREPO
 [mariadb]
 name = MariaDB
-baseurl = http://yum.mariadb.org/${MYSQL_VER}/centos${OS_VER}-${OS_ARCH1}
+baseurl = http://yum.mariadb.org/${GET_SQL_SERVER}/centos${OS_VER}-${OS_ARCH1}
 gpgkey=https://yum.mariadb.org/RPM-GPG-KEY-MariaDB
 gpgcheck=1
 EOMARIADBREPO
 
-        yum -y install MariaDB-server MariaDB-client
-    else
-            echo "${LANG_INSTALL_MARIADB2}"
+                yum -y install MariaDB-server MariaDB-client
+            else
+                _show_log -d -r " [FAIL]" -w " Can not connect to yum.mariadb.org! Exit"
+                exit 1
+            fi
+            echo ""
+            _check_installed_service "mysql" "new"
+        fi
     fi
 }
 
 ##Install phpMyAdmin
-install_phpmyadmin(){
+_install_phpmyadmin(){
     echo ""
-    echo -e "${LANG_INSTALL_PHPMYADMIN1}"
-    sleep 2
-    if [ ${WEB} == "apache" ]
+    _show_log -d -g " [INFO]" -w " Installing phpMyAdmin..."
+    sleep 1
+    if [ "${GET_PHP_VERSION}" == "all" ]
     then
-        DEFAULT_DIR_WEB="/var/www/html"
-    elif [ ${WEB} == "nginx" ]
-    then
-        DEFAULT_DIR_WEB="/usr/share/nginx/html"
-    fi
-    if [ -d ${DEFAULT_DIR_WEB} ]
-    then
-        [[ "${PHP_VER}" == "5.4" ]] && PHPMYADMIN_VER="4.0.10.20"
-        wget -O ${HOME}/phpmyadmin.tar.gz https://files.phpmyadmin.net/phpMyAdmin/${PHPMYADMIN_VER}/phpMyAdmin-${PHPMYADMIN_VER}-all-languages.tar.gz
+        PMD_VERSION=${PMD_VERSION_MAX}
+    else
+        _show_log -d -g " [INFO]" -w " Detecting PHP version installed..."
+        CHECK_PHP_INSTALLED=`ls -1 /etc/opt/remi | wc -l`
+        if [ ${CHECK_PHP_INSTALLED} -eq 0 ]
+        then
+            _show_log -d -r " [FAIL]" -w " Can not detect PHP version! Exit"
+            exit 1
+        fi
+        for i_INSTALL_PHPMYADMIN in $(ls -1 /etc/opt/remi | sed 's/php//')
+        do
+            if [ ${i_INSTALL_PHPMYADMIN} -eq 54 ]
+            then
+                PMD_VERSION="4.0.10.20"
+            elif [ ${i_INSTALL_PHPMYADMIN} -lt 71 ]
+            then
+                PMD_VERSION=${PMD_VERSION_COMMON}
+            else
+                PMD_VERSION=${PMD_VERSION_MAX}
+            fi
+        done
+        PHP_VERSION_PMD=`awk "BEGIN {printf \"%.1f\n\", ${i_INSTALL_PHPMYADMIN} / 10}"`
+        _show_log -d -g " [INFO]" -w " Highest PHP version is ${PHP_VERSION_PMD}. We will install phpMyAdmin ${PMD_VERSION}."
+        wget -O ${HOME}/phpmyadmin.tar.gz https://files.phpmyadmin.net/phpMyAdmin/${PMD_VERSION}/phpMyAdmin-${PMD_VERSION}-all-languages.tar.gz
         tar -xf ${HOME}/phpmyadmin.tar.gz
         rm -f ${HOME}/phpmyadmin.tar.gz
-        mv ${HOME}/phpMyAdmin-${PHPMYADMIN_VER}-all-languages ${HOME}/phpmyadmin
+        mv ${HOME}/phpMyAdmin-${PMD_VERSION}-all-languages ${HOME}/phpmyadmin
         mv ${HOME}/phpmyadmin/ ${DEFAULT_DIR_WEB}
         mv ${DEFAULT_DIR_WEB}/phpmyadmin/config.sample.inc.php ${DEFAULT_DIR_WEB}/phpmyadmin/config.inc.php
         chown -R root:root ${DEFAULT_DIR_WEB}/phpmyadmin
-    else
-        echo "${LANG_INSTALL_PHPMYADMIN2} ${DEFAULT_DIR_WEB}. ${LANG_INSTALL_PHPMYADMIN3}"
     fi
+    echo ""
+    _show_log -d -g " [INFO]" -w " Install phpMyadmin sucessful!"
 }
 
 ##Install FTP
-install_ftp(){
-    echo ""
-    echo -e "${LANG_INSTALL_FTP}"
-    sleep 2
-    yum -y install epel-release
-    yum -y install ${FTP_INST}
+_install_ftp(){
+    if [ ! -z "${GET_FTP_SERVER}" ]
+    then
+        echo ""
+        _show_log -d -g " [INFO]" -w " Installing ${GET_FTP_SERVER}..."
+        sleep 1
+        yum -y install ${GET_FTP_SERVER}
+        echo ""
+        _check_installed_service "${GET_FTP_SERVER}" "new"
+    fi
 }
 
 # Install csf
-install_csf(){
+_install_csf(){
     echo ""
-    echo -e "${LANG_INSTALL_CSF}"
-    sleep 2
+    _show_log -d -g " [INFO]" -w " Installing csf..."
+    sleep 1
     yum -y install perl-libwww-perl perl-LWP-Protocol-https bind-utils
     curl -o ${DIR}/csf.tgz https://download.configserver.com/csf.tgz
     tar -xf csf.tgz
     cd ${DIR}/csf
-    sh install.sh
+    sh install.sh   
     cd ${DIR}
     rm -rf csf*
-    sed -i 's/TESTING = "1"/TESTING = "0"/; s/443,587/443,465,587/; s/RESTRICT_SYSLOG = "0"/RESTRICT_SYSLOG = "2"/' /etc/csf/csf.conf
-    cat >> "/etc/csf/csf.pignore" <<EOCSF
-exe:/usr/sbin/nginx
-exe:/usr/sbin/php-fpm
-exe:/usr/sbin/rpcbind
-pexe:/usr/libexec/postfix/.*
-pexe:/opt/remi/.*/root/usr/sbin/php-fpm
-EOCSF
-    csf -r
+    echo ""
+    _check_installed_service "csf" "new"
 }
 
-##Install all services & config
-install_all(){
-    # Start install
-    start_time
-
-    # Update System
-    [[ "${UPDATE_SYS}" == "yes" ]] && update_sys
-
-    # Pre-install
-    pre_install
-
-    # Install services
-    [[ "${PHP_INST}" != "no" ]] && install_php
-    [[ "${WEB}" != "no" ]] && install_web
-    [[ "${MYSQL_INST}" != "no" ]] && install_mariadb
-    [[ "${PHPMYADMIN_VER}" != "no" ]] && install_phpmyadmin
-    [[ "${FTP_INST}" != "no" ]] && install_ftp
-    [[ "${CSF_INST}" != "no" ]] && install_csf
-
-    # Config services
-    auto_config
-    echo ""
-    echo -e "${GREEN}${LANG_RESTART_SERVICES}${REMOVE}"
-    sleep 2
-    restart_services mysql
-    restart_services ${FTP_INST}
-    restart_services ${WEB}
-    if [ "${WEB}" == "nginx" ]
+# Install ImunifyAV
+_install_imunify(){
+    if [ ! -d /etc/sysconfig/imunify360 ]
     then
-        restart_services php-fpm
+        mkdir -p /etc/sysconfig/imunify360
     fi
+    cat > /etc/sysconfig/imunify360/integration.conf <<EOF
+[PATHS]
+UI_PATH = /var/www/html/ImunifyAV
 
-    echo ""
-    echo -e "${GREEN}${LANG_START_ON_BOOT}${REMOVE}"
-    start_on_boot mysql
-    start_on_boot ${FTP_INST}
-    start_on_boot ${WEB}
-    if [ "${WEB}" == "nginx" ]
-    then
-        start_on_boot php-fpm
-    fi
-
-        RIGHT_NOW2=`date +"%T %d-%m-%Y"`
-    END_TIME=`date +%s`
-
-    # Sync time
-    [[ "${SYNC_TIME}" == "yes" ]] && sync_time
-
-    end_time
-
-    # Check services installed and running
-    check_services
-
-    # Show info
-    show_info
-
-    # Download mce
-    download_mce
+[paths]
+ui_path = /var/www/html/ImunifyAV
+EOF
+    cd /root
+    wget https://repo.imunify360.cloudlinux.com/defence360/imav-deploy.sh
+    bash imav-deploy.sh
 }
 
 # Config services
 ##Config PHP
-config_php(){
+_config_php_single(){
+    PHP_VERSION_REMI=`echo $1 | sed 's/\.//'`
     echo ""
-    echo -e "${LANG_CONFIG_PHP}"
-    sleep 2
-    mv /etc/php.ini /etc/php.ini.orig
-    cat /etc/php.ini.orig | sed \
-        "s/memory_limit = 128M/memory_limit = 256M/; \
+    _show_log -d -g " [INFO]" -w " Configing PHP ${PHP_VERSION_REMI}..."
+    mv ${REMI_DIR}/php${PHP_VERSION_REMI}/php.ini ${REMI_DIR}/php${PHP_VERSION_REMI}/php.ini.orig
+    cat ${REMI_DIR}/php${PHP_VERSION_REMI}/php.ini.orig | sed \
+       "s/memory_limit = 128M/memory_limit = 256M/; \
         s/upload_max_filesize = 2M/upload_max_filesize = 200M/; \
         s/post_max_size = 8M/post_max_size = 200M/; \
         s/max_execution_time = 30/max_execution_time = 300/; \
         s/max_input_time = 60/max_input_time = 300/; \
-        s/; max_input_vars = 1000/max_input_vars = 10000/" > /etc/php.ini
-    if [ "${PHP_INST}" == "all" ]
-    then
-        for i in $(echo ${List_PHP[*]} | sed "s/${PHP_VER}//")
-        do
-            PHP_VER2=`echo ${i} | sed 's/\.//'`
-            mv ${REMI_DIR}/php${PHP_VER2}/php.ini ${REMI_DIR}/php${PHP_VER2}/php.ini.orig
-            cat ${REMI_DIR}/php${PHP_VER2}/php.ini.orig | sed \
-                "s/memory_limit = 128M/memory_limit = 256M/; \
-                s/upload_max_filesize = 2M/upload_max_filesize = 200M/; \
-                s/post_max_size = 8M/post_max_size = 200M/; \
-                s/max_execution_time = 30/max_execution_time = 300/; \
-                s/max_input_time = 60/max_input_time = 300/; \
-                s/; max_input_vars = 1000/max_input_vars = 10000/" > ${REMI_DIR}/php${PHP_VER2}/php.ini
-        done
+        s/; max_input_vars = 1000/max_input_vars = 10000/" > ${REMI_DIR}/php${PHP_VERSION_REMI}/php.ini
+}
+
+_config_php(){
+    if [ ! -z "${GET_PHP_VERSION}" ]
+        then
+        echo ""
+        _show_log -d -g " [INFO]" -w " Configing PHP..."
+        sleep 1
+        if [ "${GET_PHP_VERSION}" == "all" ]
+        then
+            for i in $(echo ${List_PHP[*]} | sed 's/all//')
+            do
+                PHP_VERSION_REMI=`echo ${i} | sed 's/\.//'`
+                _config_php_single "${PHP_VERSION_REMI}"
+                _show_log -d -g " [INFO]" -w " Config PHP $i sucessful!"
+            done
+        else
+            PHP_VERSION_REMI=`echo ${GET_PHP_VERSION} | sed 's/\.//'`
+            _config_php_single "${PHP_VERSION_REMI}"
+            _show_log -d -g " [INFO]" -w " Config PHP ${PHP_VERSION_REMI} sucessful!"
+        fi
     fi
 }
 
 ##Config WEB server
 ###Config Nginx
-config_nginx(){
-    echo ""
-    echo -e "${LANG_CONFIG_NGINX}"
-    sleep 2
-        VHOST_DIR="/etc/nginx/conf.d"
-    mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf.orig
-    cat > "/etc/nginx/nginx.conf" <<EONGINXCONF
+_config_nginx(){
+    if [ ! -z "${GET_WEB_SERVER}" ]
+    then
+        echo ""
+        _show_log -d -g " [INFO]" -w " Configing nginx..."
+        sleep 1
+        mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf.orig
+        cat > "/etc/nginx/nginx.conf" <<EONGINXCONF
 worker_processes 1;
 worker_rlimit_nofile 65536;
 pid /var/run/nginx.pid;
@@ -670,33 +677,101 @@ http {
 }
 EONGINXCONF
 
-    if [ ! -d ${VHOST_DIR} ]
-    then
-        mkdir ${VHOST_DIR}
+        echo "0 0 1 * * /var/mce/script/rotate_log" >> /var/spool/cron/root
+        _show_log -d -g " [INFO]" -w " Config nginx sucessful!"
     fi
+}
 
-    if [ -f ${VHOST_DIR}/default.conf ]
+_config_openlitespeed(){
+    :
+}
+
+##Config phpmyadmin
+_config_phpmyadmin(){
+    echo ""
+    _show_log -d -g " [INFO]" -w " Configing phpmyadmin..."
+    sleep 1
+    PHP_VERSION_REMI=`echo ${PHP_VERSION_PMD} | sed 's/\.//'`
+    FPM_DIR="${REMI_DIR}/php${PHP_VERSION_REMI}/php-fpm.d"
+    BLOWFISH_SECRET=`date +%s | sha256sum | base64 | head -c 32`
+    cat > "${DEFAULT_DIR_WEB}/phpmyadmin/config.inc.php" <<EOCONFIGINC
+<?php
+\$cfg['blowfish_secret'] = '${BLOWFISH_SECRET}';
+\$i = 0;
+\$i++;
+\$cfg['Servers'][\$i]['auth_type'] = 'cookie';
+\$cfg['Servers'][\$i]['host'] = 'localhost';
+\$cfg['Servers'][\$i]['connect_type'] = 'tcp';
+\$cfg['Servers'][\$i]['compress'] = false;
+\$cfg['Servers'][\$i]['AllowNoPassword'] = false;
+\$cfg['UploadDir'] = '';
+\$cfg['SaveDir'] = '';
+\$cfg['PmaNoRelation_DisableWarning'] = true;
+\$cfg['VersionCheck'] = false;
+EOCONFIGINC
+
+    _detect_web_server
+    CHECK_WEB_SERVER=$?
+    if [[ ${CHECK_WEB_SERVER} -eq 10 ]] || [[ ${CHECK_WEB_SERVER} -eq 11 ]]
     then
-        mv ${VHOST_DIR}/default.conf ${VHOST_DIR}/default.conf.orig
+        chown -R nginx.nginx ${DEFAULT_DIR_WEB}/phpmyadmin
+    elif [[ ${CHECK_WEB_SERVER} -eq 20 ]] || [[ ${CHECK_WEB_SERVER} -eq 21 ]]
+    then
+        chown -R openlitespeed.openlitespeed ${DEFAULT_DIR_WEB}/phpmyadmin
+    else
+        _show_log -d -g " [INFO]" -w " Can not detect web server, do not chown phpmyadmin directory!"
     fi
+   
+    if [ ! -d ${FPM_DIR} ]
+    then
+        mkdir ${FPM_DIR}
+    else
+        mv ${FPM_DIR}/www.conf ${FPM_DIR}/www.conf.orig
+    fi
+    cat > "${FPM_DIR}/www.conf" <<EOconfig_php_fpm
+[nginx]
+user = nginx
+group = nginx
+listen = /var/run/phpmyadmin.php${PHP_VERSION_REMI}.sock
+listen.owner = nginx
+listen.group = nginx
+php_admin_value[disable_functions] = passthru,shell_exec,system
+php_admin_flag[allow_url_fopen] = off
+pm = dynamic
+pm.max_children = 25
+pm.start_servers = 5
+pm.min_spare_servers = 2
+pm.max_spare_servers = 10
+chdir = /
+EOconfig_php_fpm
 
-    cat > "${VHOST_DIR}/_default_server.conf" <<EOnginx_vhost_default
+        if [ ! -d ${VHOST_DIR} ]
+        then
+            mkdir ${VHOST_DIR}
+        fi
+
+        if [ -f ${VHOST_DIR}/default.conf ]
+        then
+            mv ${VHOST_DIR}/default.conf ${VHOST_DIR}/default.conf.orig
+        fi
+
+        cat > "${VHOST_DIR}/_default_server.conf" <<EOnginx_vhost_default
 server {
         listen       80;
         server_name  localhost;
 
         location / {
-            root   /usr/share/nginx/html;
+            root   /var/www/html;
             index  index.php index.html index.htm;
         }
 
         location ~ ^/phpmyadmin/(.*\\.php)\$ {
-            root                /usr/share/nginx/html/phpmyadmin/;
+            root                /var/www/html/phpmyadmin/;
             fastcgi_index       index.php;
-            fastcgi_pass        unix:/var/run/phpmyadmin.sock;
+            fastcgi_pass        unix:/var/run/phpmyadmin.php${PHP_VERSION_REMI}.sock;
             include             fastcgi_params;
-            fastcgi_param       SCRIPT_FILENAME /usr/share/nginx/html/phpmyadmin/\$1;
-            fastcgi_param       DOCUMENT_ROOT /usr/share/nginx/html/phpmyadmin;
+            fastcgi_param       SCRIPT_FILENAME /var/www/html/phpmyadmin/\$1;
+            fastcgi_param       DOCUMENT_ROOT /var/www/html/phpmyadmin;
         }
 
         error_page   500 502 503 504  /50x.html;
@@ -706,86 +781,26 @@ server {
 }
 EOnginx_vhost_default
 
-
-    echo "0 0 1 * * /var/mce/script/rotate_log" >> /var/spool/cron/root
-}
-
-##Config php-fpm
-config_php_fpm(){
-    echo ""
-    echo -e "${LANG_CONFIG_PHP_FPM}"
-    sleep 2
-    FPM_DIR="/etc/php-fpm.d"
-    if [ ! -d ${FPM_DIR} ]
-    then
-        mkdir ${FPM_DIR}
-        else
-        mv ${FPM_DIR}/www.conf ${FPM_DIR}/www.conf.orig
-    fi
-    cat > "${FPM_DIR}/www.conf" <<EOconfig_php_fpm
-[nginx]
-user = nginx
-group = nginx
-listen = /var/run/phpmyadmin.sock
-listen.owner = nginx
-listen.group = nginx
-php_admin_value[disable_functions] = passthru,shell_exec,system
-php_admin_flag[allow_url_fopen] = off
-pm = dynamic
-pm.max_children = 25
-pm.start_servers = 5
-pm.min_spare_servers = 2
-pm.max_spare_servers = 10
-chdir = /
-EOconfig_php_fpm
-
-    if [ "${PHP_INST}" == "all" ]
-    then
-        for i in $(echo ${List_PHP[*]} | sed "s/${PHP_VER}//")
-        do
-            PHP_VER2=`echo ${i} | sed 's/\.//'`
-            FPM_DIR="${REMI_DIR}/php${PHP_VER2}/php-fpm.d"
-            if [ ! -d ${FPM_DIR} ]
-            then
-                mkdir ${FPM_DIR}
-                else
-                mv ${FPM_DIR}/www.conf ${FPM_DIR}/www.conf.orig
-            fi
-            cat > "${FPM_DIR}/www.conf" <<EOconfig_php_fpm
-[nginx]
-user = nginx
-group = nginx
-listen = /var/run/phpmyadmin.php${PHP_VER2}.sock
-listen.owner = nginx
-listen.group = nginx
-php_admin_value[disable_functions] = passthru,shell_exec,system
-php_admin_flag[allow_url_fopen] = off
-pm = dynamic
-pm.max_children = 25
-pm.start_servers = 5
-pm.min_spare_servers = 2
-pm.max_spare_servers = 10
-chdir = /
-EOconfig_php_fpm
-        done
-    fi
+    _show_log -d -g " [INFO]" -w " Config phpmyadmin sucessful!"
 }
 
 ## Config MySQL
-config_mysql(){
-    echo ""
-    echo -e "${LANG_CONFIG_MYSQL}"
-    sleep 2
-    CHECK_MARIADB=`mysql -V | grep MariaDB | wc -l`
-    if [ ${CHECK_MARIADB} = 1 ]
+_config_mariadb(){
+    if [[ ! -z "${GET_SQL_SERVER}" ]] && [[ "${NOT_CONFIG_MYSQL}" != "1" ]]
     then
-        MYSQL="mysql"
-    else
-        MYSQL="mysqld"
-    fi
-    service ${MYSQL} restart
-    SQLPASS=`date +%s | sha256sum | base64 | head -c 12`
-    /usr/bin/mysql_secure_installation << EOF
+        echo ""
+        _show_log -d -g " [INFO]" -w " Configing SQL..."
+        sleep 1
+        CHECK_MARIADB=`mysql -V | grep MariaDB | wc -l`
+        if [ ${CHECK_MARIADB} = 1 ]
+        then
+            MYSQL="mysql"
+        else
+            MYSQL="mysqld"
+        fi
+        service ${MYSQL} restart
+        SQLPASS=`date +%s | sha256sum | base64 | head -c 12`
+        /usr/bin/mysql_secure_installation << EOF
 
 y
 ${SQLPASS}
@@ -796,14 +811,14 @@ y
 y
 EOF
 
-    cat > "/root/.my.cnf" <<EOFMYCNF
+        cat > "/root/.my.cnf" <<EOFMYCNF
 [client]
 user="root"
 password="${SQLPASS}"
 EOFMYCNF
 
-    mv /etc/my.cnf /etc/my.cnf.orig
-    cat > "/etc/my.cnf" <<EOFMYSQLCONF
+        mv /etc/my.cnf /etc/my.cnf.orig
+        cat > "/etc/my.cnf" <<EOFMYSQLCONF
 [mysqld]
 log_error=/var/lib/mysql/${HOSTNAME}.err
 bind-address = 127.0.0.1
@@ -850,71 +865,36 @@ interactive-timeout
 [mysqld_safe]
 open-files-limit        = 8192
 EOFMYSQLCONF
-}
 
-##Config phpMyAdmin
-config_phpmyadmin(){
-    echo ""
-    echo -e "${LANG_CONFIG_PHPMYADMIN}"
-    sleep 2
-    BLOWFISH_SECRET=`date +%s | sha256sum | base64 | head -c 32`
-    cat > "${DEFAULT_DIR_WEB}/phpmyadmin/config.inc.php" <<EOCONFIGINC
-<?php
-\$cfg['blowfish_secret'] = '${BLOWFISH_SECRET}';
-\$i = 0;
-\$i++;
-\$cfg['Servers'][\$i]['auth_type'] = 'cookie';
-\$cfg['Servers'][\$i]['host'] = 'localhost';
-\$cfg['Servers'][\$i]['connect_type'] = 'tcp';
-\$cfg['Servers'][\$i]['compress'] = false;
-\$cfg['Servers'][\$i]['AllowNoPassword'] = false;
-\$cfg['UploadDir'] = '';
-\$cfg['SaveDir'] = '';
-\$cfg['PmaNoRelation_DisableWarning'] = true;
-\$cfg['VersionCheck'] = false;
-EOCONFIGINC
-    
-    if [ ${WEB} == "nginx" ]
-    then
-        chown -R nginx.nginx ${DEFAULT_DIR_WEB}/phpmyadmin
-    elif [ ${WEB} == "apache" ]
-    then
-        chown apache.apache /var/lib/php/session
+        _show_log -d -g " [INFO]" -w " Config SQL sucessful!"
     fi
 }
 
-# Auto Config
-auto_config(){
-    if [ "${AUTO_CONFIG}" != "yes" ]
+# Config FTP
+_config_ftp(){
+    :
+}
+_config_csf(){
+    echo ""
+    _show_log -d -g " [INFO]" -w " Configing csf..."
+    sed -i 's/TESTING = "1"/TESTING = "0"/; s/443,587/443,465,587/; s/RESTRICT_SYSLOG = "0"/RESTRICT_SYSLOG = "2"/' /etc/csf/csf.conf
+    cat >> "/etc/csf/csf.pignore" <<EOCSF
+exe:/usr/sbin/nginx
+exe:/usr/sbin/php-fpm
+exe:/usr/sbin/rpcbind
+pexe:/usr/libexec/postfix/.*
+pexe:/opt/remi/.*/root/usr/sbin/php-fpm
+EOCSF
+    csf -r
+    echo ""
+    _show_log -d -g " [INFO]" -w " Config csf sucessful!"
+}
+
+# Config webserver
+_config_web(){
+    if [ ! -z "${GET_WEB_SERVER}" ]
     then
-            echo "${LANG_AUTO_CONFIG1}"
-    else
-        if [ "${PHP_VER}" == "no" ]
-        then
-            echo "${LANG_AUTO_CONFIG2}"
-        else
-            config_php
-        fi
-        if [ "${MYSQL_INST}" == "no" ]
-        then
-            echo "${LANG_AUTO_CONFIG3}"
-        else
-            config_mysql
-        fi
-        if [ "${PHP_VER}" == "no" ]
-        then
-            echo "${LANG_AUTO_CONFIG4}"
-        else
-            config_phpmyadmin
-        fi
-        if [ "${WEB}" == "no" ]
-        then
-            echo "${LANG_AUTO_CONFIG5}"
-        elif [ ${WEB} == "nginx" ]
-        then
-            config_nginx
-            config_php_fpm
-        fi
+        _config_${GET_WEB_SERVER}
     fi
 }
 
@@ -971,37 +951,11 @@ end_time(){
 }
 
 # Check services after install
-check_services(){
-    CHECK_PHP_INSTALLED=`command -v php | wc -l`
-    CHECK_WEB_INSTALLED=`command -v ${WEB} | wc -l`
-    CHECK_SQL_INSTALLED=`command -v mysql | wc -l`
-    CHECK_FTP_INSTALLED=`command -v ${FTP_INST} | wc -l`
-    CHECK_WEB_RUNNING=`pidof ${WEB} | wc -l`
-    CHECK_SQL_RUNNING=`pidof mysqld | wc -l`
-    CHECK_FTP_RUNNING=`pidof ${FTP_INST} | wc -l`
-
-    PHP_INSTALLED=`check_exist ${CHECK_PHP_INSTALLED}`
-    WEB_INSTALLED=`check_exist ${CHECK_WEB_INSTALLED}`
-    SQL_INSTALLED=`check_exist ${CHECK_SQL_INSTALLED}`
-    FTP_INSTALLED=`check_exist ${CHECK_FTP_INSTALLED}`
-    WEB_RUNNING=`check_exist ${CHECK_WEB_RUNNING}`
-    SQL_RUNNING=`check_exist ${CHECK_SQL_RUNNING}`
-    FTP_RUNNING=`check_exist ${CHECK_FTP_RUNNING}`
-    echo " ---"
-    echo "${LANG_CHECK_SERVICES1}"
-    echo "${LANG_CHECK_SERVICES2}"
-    echo " PHP       ${PHP_INSTALLED}"
-    echo " ${WEB}     ${WEB_INSTALLED}         ${WEB_RUNNING}"
-    echo " MySQL     ${SQL_INSTALLED}         ${SQL_RUNNING}"
-    echo " FTP       ${FTP_INSTALLED}         ${FTP_RUNNING}"
-    if [ ${WEB} == "nginx" ]
-    then
-        CHECK_PHP_FPM_INSTALLED=`command -v php-fpm | wc -l`
-        CHECK_PHP_FPM_RUNNING=`pidof php-fpm | wc -l`
-        PHP_FPM_INSTALLED=`check_exist ${CHECK_PHP_FPM_INSTALLED}`
-        PHP_FPM_RUNNING=`check_exist ${CHECK_PHP_FPM_RUNNING}`
-        echo " php-fpm   ${PHP_FPM_INSTALLED}         ${PHP_FPM_RUNNING}"
-    fi
+_check_service(){
+    case $1 in
+        -i) command -v $2 | wc -l ;;
+        -r) pidof $2 | wc -l ;;
+    esac
 }
 
 # Show information to screen
@@ -1082,7 +1036,7 @@ choose_languague(){
     do
         List_CHOOSE_LANG=(1 2)
         read -p " Your choice( Lựa chọn của bạn): " CHOOSE_LANG
-        check_list "${CHOOSE_LANG}" "${List_CHOOSE_LANG[*]}"
+        _check_value_in_list "${CHOOSE_LANG}" "${List_CHOOSE_LANG[*]}"
         if [ $? -eq 1 ]
         then
             echo " Wrong option. Please choose 1 or 2!"
@@ -1092,37 +1046,97 @@ choose_languague(){
     done
 }
 
-clear
-echo " Now we support 2 languagues, please choose 1 or 2:"
-echo "(Hiện tại chúng tôi hỗ trợ 2 ngôn ngữ, vui lòng chọn 1 hoặc 2:)"
-echo " 1. English"
-echo " 2. Tiếng Việt"
-choose_languague
+# Main install
+_main_install(){
+    _install_ftp
+    _install_php
+    _install_mariadb
+    _install_web
+    if [ ! -z "${EXTRA_SERVICE}" ]
+    then
+        for i_EXTRA_SERVICE in $(cat /tmp/extra_service_min.txt)
+        do
+            _install_${i_EXTRA_SERVICE}
+        done
+    fi
+    
+    _config_ftp
+    _config_php
+    _config_mariadb
+    _config_web
+    if [ ! -z "${EXTRA_SERVICE}" ]
+    then
+        for i_EXTRA_SERVICE in $(cat /tmp/extra_service_min.txt)
+        do
+            _config_${i_EXTRA_SERVICE}
+        done
+    fi
+}
 
-multi_lang
+# Show help
+_show_help(){
+    echo "Usage: sh ${SCRIPT_NAME} [options...]"
+    echo "Options:"
+    echo "    -a               Install all services."
+    echo "    -e [extra]       Install extra services. Can use multiple -e options."
+    echo "        extra:       $(echo ${List_EXTRA[*]} | sed 's/ /|/g')"
+    echo ""
+    echo "    -f [ftp-server]  Choose ftp server will be installed."
+    echo "        ftp-server:  $(echo ${List_FTP[*]} | sed 's/ /|/g')"
+    echo ""
+    echo "    -p [php-version] Choose php version will be installed."
+    echo "        php-version: $(echo ${List_PHP[*]} | sed 's/ /|/g')"
+    echo ""
+    echo "    -s [sql-server]  Choose sql server will be installed."
+    echo "        sql-server:  $(echo ${List_SQL[*]} | sed 's/ /|/g')"
+    echo ""
+    echo "    -w [web-server]  Choose web server will be installed."
+    echo "        web-server:  $(echo ${List_WEB[*]} | sed 's/ /|/g')"
+    echo ""
+    echo "    -h               Show help"
+    echo "    -v               Show version"    
+    echo "    -x               Debug mode"
+    echo ""
+    echo "Example:"
+    echo "    sh ${SCRIPT_NAME} -a"
+    echo "    sh ${SCRIPT_NAME} -p 7.3 -w nginx -s 10.4 -f proftpd -e phpmyadmin -e csf"
+}
 
-# Create directory
-create_dir
-
-# Check control panel
-check_control_panel
-
-# Check option
-check_options
-
-# Check Information
-check_info
-
-# Show information will be install
-show_info_install
-
-# Install services
-case ${OPTION} in
-    all) install_all;;
-    php) install_php;;
-    mysql) install_mariadb; config_mysql; restart_services mysql;;
-    ftp) install_ftp; restart_services ${FTP_INST};;
-    httpd) install_web; restart_services httpd;;
-    nginx) install_web; restart_services nginx;;
-    csf) install_csf;;
-esac
+rm -f /tmp/config_service.txt /tmp/config_service_min.txt /tmp/extra_service.txt /tmp/extra_service_min.txt /tmp/show_info.txt
+while getopts 'e:f:p:s:w:ahxv' OPTION
+do
+    case ${OPTION} in
+        a) INSTALL_ALL=1 ;;
+        e) EXTRA_SERVICE=${OPTARG}
+           if [ "${EXTRA_SERVICE}" == "all" ]
+           then
+               for i_EXTRA_SERVICE in ${List_EXTRA[*]}
+               do
+                   if [ "${i_EXTRA_SERVICE}" != "all" ]
+                   then
+                       echo ${i_EXTRA_SERVICE} >> /tmp/extra_service.txt
+                   fi
+               done
+           else
+               echo ${EXTRA_SERVICE} >> /tmp/extra_service.txt
+           fi
+           ;;
+        f) GET_FTP_SERVER=${OPTARG} ;;
+        p) GET_PHP_VERSION=${OPTARG} ;;
+        s) GET_SQL_SERVER=${OPTARG} ;;
+        w) GET_WEB_SERVER=${OPTARG} ;;
+        h) _show_help; exit 0 ;;
+        v) head -n 5 ${SCRIPT_NAME} | grep "^# Version:" | awk '{print $3}' ; exit 0 ;;
+        x) set -x ;;
+        *) _show_help; exit 1 ;;
+    esac
+done
+_show_log -w "---"
+_create_dir
+#_multi_lang
+_check_control_panel
+_check_info
+#_pre_install
+#_sync_time
+#_start_time
+_main_install

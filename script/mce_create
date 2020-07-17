@@ -9,19 +9,7 @@ RED='\e[31m'
 REMOVE='\e[0m'
 BASH_DIR="/var/mce/script"
 USER_DIR="/var/mce/user"
-GITHUB_LINK="https://raw.githubusercontent.com/mbrother2/buildmce/master/lemp"
-LANG=$1
-
-# Check option in a list
-check_list(){
-    false
-    VALUE=$1
-    List=($2)
-    for i in ${List[*]}
-    do
-        [[ "${i}" == "${VALUE}" ]] && return 0
-    done
-}
+GITHUB_LINK="https://raw.githubusercontent.com/mbrother2/buildmce/master/script"
 
 # Create directory if not exist
 create_dir(){
@@ -88,19 +76,7 @@ chmod_script(){
     chmod 755 ${BASH_DIR}/variable_common
 }
 
-List_LANG=(en vi)
-check_list "${LANG}" "${List_LANG[*]}"
-if [ $? -eq 1 ]
-then
-    echo -e " Not support language ${RED}${LANG}${REMOVE}!"
-    echo -e " Please use: sh ${0} [${GREEN}en${REMOVE}] [${GREEN}vi${REMOVE}]"
-    echo -e " Example: ${GREEN}sh ${0} en${REMOVE}"
-    echo -e "(Không hỗ trợ ngôn ngữ ${RED}${LANG}${REMOVE}!)"
-    echo -e "(Vui lòng sử dụng: sh ${0} [${GREEN}en${REMOVE}] [${GREEN}vi${REMOVE}])"
-    echo -e "(Ví dụ: ${GREEN}sh ${0} vi${REMOVE})"
-else
-    create_dir
-    download_script
-    chmod_script
-    echo "0 0 1 * * /var/mce/script/rotate_log" >> /var/spool/cron/root
-fi
+create_dir
+download_script
+chmod_script
+echo "0 0 1 * * /var/mce/script/rotate_log" >> /var/spool/cron/root

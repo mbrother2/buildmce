@@ -18,6 +18,26 @@ REMI_DIR="/etc/opt/remi"
 LSWS_DIR="/usr/local/lsws"
 VHOST_DIR="/etc/nginx/conf.d"
 
+# List support versions
+List_PHP=(all 5.4 5.5 5.6 7.0 7.1 7.2 7.3 7.4)
+List_SQL=(5.5 10.0 10.1 10.2 10.3 10.4)
+List_NODEJS=(8.x 9.x 10.x 11.x 12.x 14.x)
+List_FTP=(proftpd pure-ftpd)
+List_WEB=(nginx openlitespeed)
+List_EXTRA=(all phpmyadmin letsencrypt memcached redis vnstat)
+List_SECURITY=(all csf imunify clamav)
+List_STACK=(lemp lomp)
+
+# Default services & version
+PMD_VERSION_MAX="5.0.2"
+PMD_VERSION_COMMON="4.9.5"
+DEFAULT_FTP_SERVER="pure-ftpd"
+DEFAULT_PHP_VERSION="7.4"
+DEFAULT_SQL_SERVER="10.4"
+DEFAULT_WEB_SERVER="nginx"
+DEFAULT_NODEJS="12.x"
+DEFAULT_VNSTAT_VERSION="2.6"
+
 # Control panel
 CPANEL="/usr/local/cpanel/cpanel"
 DIRECTADMIN="/usr/local/directadmin/custombuild/build"
@@ -76,13 +96,6 @@ _check_network(){
     fi
 }
 
-_get_default_version(){
-    cd ${DIR}
-    curl -so default_version.conf ${GITHUB_LINK}/default_version.conf
-    source ${DIR}/default_version.conf
-    rm -f ${DIR}/default_version.conf
-}
-
 # Start time
 _start_install(){
     TIME_BEGIN=`date +%s`
@@ -99,7 +112,7 @@ _end_install(){
         echo ""
         cat /tmp/show_info_after_install.txt
     fi
-    rm -f /tmp/{config_service.txt,config_service_min.txt,extra_service.txt,extra_service_min.txt,show_info.txt,php_version.txt,php_version_min.txt,show_info_after_install.txt}
+    rm -f /tmp/{config_service.txt,config_service_min.txt,extra_service.txt,extra_service_min.txt,show_info.txt,php_version.txt,php_version_min.txt,security_service.txt,security_service_min.txt,show_info_after_install.txt}
 }
 
 # Create necessary directory
@@ -117,10 +130,17 @@ _create_dir(){
 # Check if cPanel, DirectAdmin, Plesk has installed before
 _check_control_panel(){
     _show_log -d -g " [INFO]" -w " Checking if cPanel, DirectAdmin, Plesk has installed before..."
-    if [[ -f ${CPANEL} ]] || [[ -f ${DIRECTADMIN} ]] || [[ -f ${PLESK} ]]
+    if [ -f ${CPANEL} ]
     then
-        _show_log -d -r " [FAIL]" -w " ${LANG__check_control_panel1}"
-        _show_log -d -r " [FAIL]" -w " ${LANG__check_control_panel2}"
+        _show_log -d -r " [FAIL]" -w " Detected cPanel is installed on this server. Please use minimal OS without any control panel to use buildmce !"
+        exit 1
+    elif [ -f ${DIRECTADMIN} ]
+    then
+        _show_log -d -r " [FAIL]" -w " Detected DirectAdmin is installed on this server. Please use minimal OS without any control panel to use buildmce !"
+        exit 1
+    elif [ -f ${PLESK} ]
+    then
+        _show_log -d -r " [FAIL]" -w " Detected Plesk is installed on this server. Please use minimal OS without any control panel to use buildmce !"
         exit 1
     else
         _show_log -d -g " [INFO]" -w " No control panel detected. Continue..."
@@ -176,42 +196,45 @@ _check_installed_service(){
 
 # Detect web server
 _detect_web_server(){
-    _show_log -d -g " [INFO]" -w " Detecting web server..."
-    if [ -z "${GET_WEB_SERVER}" ]
+    if [ -z "${WEB_SERVER}" ]
     then
-        CHECK_NGINX_RUNNING=`_check_service -r nginx`
-        CHECK_OLS_RUNNING=`_check_service -r litespeed`
-        if [ ${CHECK_NGINX_RUNNING} -eq 1 ]
+        _show_log -d -g " [INFO]" -w " Detecting web server..."
+        if [ -z "${GET_WEB_SERVER}" ]
         then
-            _show_log -d -g " [INFO]" -w " Detected nginx running."
-            WEB_SERVER="nginx"
-        elif [ ${CHECK_OLS_RUNNING} -eq 1 ]
-        then
-            _show_log -d -g " [INFO]" -w " Detected openlitespeed running."
-            WEB_SERVER="openlitespeed"
-        else
-            _show_log -d -g " [INFO]" -w " Can not detect web server is running!"
-            echo ""
-            echo "Do you want to install $1 for nginx or openlitespeed?"
-            echo "1. nginx"
-            echo "2. openlitespeed"
-            read -p "Your choice: " WEB_SERVER_CHOICE
-            until [[ "${WEB_SERVER_CHOICE}" == 1 ]] || [[ "${WEB_SERVER_CHOICE}" == 2 ]]
-            do
-                echo "Please choose 1 or 2!"
-                read -p "Your choice: " WEB_SERVER_CHOICE
-            done
-            if [ ${WEB_SERVER_CHOICE} -eq 1 ]
+            CHECK_NGINX_RUNNING=`_check_service -r nginx`
+            CHECK_OLS_RUNNING=`_check_service -r litespeed`
+            if [ ${CHECK_NGINX_RUNNING} -eq 1 ]
             then
+                _show_log -d -g " [INFO]" -w " Detected nginx running."
                 WEB_SERVER="nginx"
-            else
+            elif [ ${CHECK_OLS_RUNNING} -eq 1 ]
+            then
+                _show_log -d -g " [INFO]" -w " Detected openlitespeed running."
                 WEB_SERVER="openlitespeed"
+            else
+                _show_log -d -g " [INFO]" -w " Can not detect web server is running!"
+                echo ""
+                echo "Do you want to install $1 for nginx or openlitespeed?"
+                echo "1. nginx"
+                echo "2. openlitespeed"
+                read -p "Your choice: " WEB_SERVER_CHOICE
+                until [[ "${WEB_SERVER_CHOICE}" == 1 ]] || [[ "${WEB_SERVER_CHOICE}" == 2 ]]
+                do
+                    echo "Please choose 1 or 2!"
+                    read -p "Your choice: " WEB_SERVER_CHOICE
+                done
+                if [ ${WEB_SERVER_CHOICE} -eq 1 ]
+                then
+                    WEB_SERVER="nginx"
+                else
+                    WEB_SERVER="openlitespeed"
+                fi
+                _show_log -d -g " [INFO]" -w " You choose web server" -r " ${WEB_SERVER}"
             fi
-            _show_log -d -g " [INFO]" -w " You choose web server" -r " ${WEB_SERVER}"
+        else
+            WEB_SERVER=${GET_WEB_SERVER}
+            _show_log -d -g " [INFO]" -w " Web server is ${GET_WEB_SERVER}."
         fi
-    else
-        WEB_SERVER=${GET_WEB_SERVER}
-        _show_log -d -g " [INFO]" -w " Web server is ${GET_WEB_SERVER}."
     fi
 }
 
@@ -263,7 +286,15 @@ _check_info(){
             then
                 echo ${i_EXTRA_SERVICE} >> /tmp/extra_service.txt
             fi
-         done
+        done
+        SECURITY_SERVICE="all"
+        for i_SECURITY_SERVICE in ${List_SECURITY[*]}
+        do
+            if [ "${i_SECURITY_SERVICE}" != "all" ]
+            then
+                echo ${i_SECURITY_SERVICE} >> /tmp/security_service.txt
+            fi
+        done
     elif [ ! -z "${GET_STACK}" ]
     then
         _check_value_in_list "Stack" "${GET_STACK}" "${List_STACK[*]}"
@@ -323,6 +354,15 @@ _check_info(){
         done
         echo "Extra services: $(cat /tmp/extra_service_min.txt | sed ':a;N;$!ba;s/\n/,/g')" >> /tmp/show_info.txt
     fi
+    if [ ! -z "${SECURITY_SERVICE}" ]
+    then
+        cat /tmp/security_service.txt | sort | uniq > /tmp/security_service_min.txt
+        for i_SECURITY_SERVICE in $(cat /tmp/security_service_min.txt)
+        do
+            _check_value_in_list "Security service" "${i_SECURITY_SERVICE}" "${List_SECURITY[*]}"
+        done
+        echo "Security services: $(cat /tmp/security_service_min.txt | sed ':a;N;$!ba;s/\n/,/g')" >> /tmp/show_info.txt
+    fi
     if [ ! -f /tmp/show_info.txt ]
     then
         echo ""
@@ -339,12 +379,12 @@ _check_info(){
     cat /tmp/show_info.txt
     echo ""
     echo -e "If that is exactly what you need, please type ${GREEN}Yes${REMOVE} with caption ${GREEN}Y${REMOVE} to install or press ${RED}Ctrl + C${REMOVE} to cancel!"
-    YOUR_CHOICE="No"
-    read -p "Your choice: " YOUR_CHOICE
-    while [ "${YOUR_CHOICE}" != "Yes" ]
+    CHOICE_INSTALL="No"
+    read -p "Your choice: " CHOICE_INSTALL
+    while [ "${CHOICE_INSTALL}" != "Yes" ]
     do
         echo -e "Please type ${GREEN}Yes${REMOVE} with caption ${GREEN}Y${REMOVE} to install or press ${RED}Ctrl + C${REMOVE} to cancel!"
-        read -p "Your choice: " YOUR_CHOICE
+        read -p "Your choice: " CHOICE_INSTALL
     done
 }
 
@@ -1261,7 +1301,7 @@ _check_service(){
 
 # Download mce
 _download_mce(){
-    if [ ${DOWNLOAD_MCE} -eq 2 ]
+    if [ "${DOWNLOAD_MCE}" == "2" ]
     then
         echo ""
         echo "---"
@@ -1269,8 +1309,8 @@ _download_mce(){
         false
         while [ $? -eq 1 ]
         do
-            read -p "Your choice(Yes/No): " YOUR_CHOICE
-            if [[ "${YOUR_CHOICE}" == "Yes" ]] || [[ "${YOUR_CHOICE}" == "No" ]]
+            read -p "Your choice(Yes/No): " CHOICE_DOWNLOAD
+            if [[ "${CHOICE_DOWNLOAD}" == "Yes" ]] || [[ "${CHOICE_DOWNLOAD}" == "No" ]]
             then
                 true
             else
@@ -1279,7 +1319,7 @@ _download_mce(){
             fi
         done
     fi
-    if [[ "${YOUR_CHOICE}" == "Yes" ]] || [[ ${DOWNLOAD_MCE} -eq 1 ]]
+    if [[ "${CHOICE_DOWNLOAD}" == "Yes" ]] || [[ "${DOWNLOAD_MCE}" == "1" ]]
     then
         echo ""
         _show_log -d -g " [INFO]" -w " Starting to download mce scripts..."
@@ -1291,15 +1331,18 @@ _download_mce(){
         then
             mkdir -p ${BASH_DIR}
         fi
-        mv ${DIR}/build.sh ${BASH_DIR}/build.sh
-        chmod 755 ${BASH_DIR}/build.sh
+        if [ "${DIR}" != "${BASH_DIR}" ]
+        then
+            mv ${DIR}/build.sh ${BASH_DIR}/build.sh
+            chmod 755 ${BASH_DIR}/build.sh
+        fi
         echo ""
         _show_log -d -g " [INFO]" -w " Download mce scripts successful!"
-    else
-        rm -f ${DIR}/build.sh
+    elif [ "${CHOICE_DOWNLOAD}" == "No" ]
+    then
         _show_log -d -g " [INFO]" -w " You do not download mce."
     fi
-    if [ ${DOWNLOAD_MCE} -eq 2 ]
+    if [ "${DOWNLOAD_MCE}" == "2" ]
     then
         echo ""
         echo -e "Everything is done! Please type ${GREEN}mce${REMOVE} to start create your amazing website!"
@@ -1321,6 +1364,13 @@ _main_install(){
             _install_${i_EXTRA_SERVICE}
         done
     fi
+    if [ ! -z "${SECURITY_SERVICE}" ]
+    then
+        for i_SECURITY_SERVICE in $(cat /tmp/security_service_min.txt)
+        do
+            _install_${i_SECURITY_SERVICE}
+        done
+    fi
     
     _config_ftp
     _config_php
@@ -1331,6 +1381,13 @@ _main_install(){
         for i_EXTRA_SERVICE in $(cat /tmp/extra_service_min.txt)
         do
             _config_${i_EXTRA_SERVICE}
+        done
+    fi
+    if [ ! -z "${SECURITY_SERVICE}" ]
+    then
+        for i_SECURITY_SERVICE in $(cat /tmp/security_service_min.txt)
+        do
+            _config_${i_SECURITY_SERVICE}
         done
     fi
 }
@@ -1359,6 +1416,9 @@ _show_help(){
     echo "    -p [php-version]     Choose php version will be installed. Can use multiple -p options."
     echo "        php-version:     $(echo ${List_PHP[*]} | sed 's/ /|/g')"
     echo ""
+    echo "    -s [security]        Install security services. Can use multiple -e options."
+    echo "        security:        $(echo ${List_SECURITY[*]} | sed 's/ /|/g')"
+    echo ""
     echo "    -w [web-server]      Choose web server will be installed."
     echo "        web-server:      $(echo ${List_WEB[*]} | sed 's/ /|/g')"
     echo ""
@@ -1370,12 +1430,12 @@ _show_help(){
     echo "Example:"
     echo "    sh ${SCRIPT_NAME} -a"
     echo "    sh ${SCRIPT_NAME} -l lemp"
-    echo "    sh ${SCRIPT_NAME} -p 7.3 -w nginx -m 10.4 -f proftpd -e phpmyadmin -e csf"
+    echo "    sh ${SCRIPT_NAME} -p 7.3 -w nginx -m 10.4 -f proftpd -e phpmyadmin -s csf"
 }
 
 # Main
-rm -f /tmp/{config_service.txt,config_service_min.txt,extra_service.txt,extra_service_min.txt,show_info.txt,php_version.txt,php_version_min.txt,show_info_after_install.txt}
-while getopts 'e:f:p:l:m:n:w:aduhv' OPTION
+rm -f /tmp/{config_service.txt,config_service_min.txt,extra_service.txt,extra_service_min.txt,show_info.txt,php_version.txt,php_version_min.txt,security_service.txt,security_service_min.txt,show_info_after_install.txt}
+while getopts 'e:f:l:m:n:p:s:w:aduhv' OPTION
 do
     case ${OPTION} in
         a) INSTALL_ALL=1; DOWNLOAD_MCE=2 ;;
@@ -1418,14 +1478,27 @@ do
                echo ${GET_PHP_VERSION} >> /tmp/php_version.txt
            fi
            ;;
+        s) SECURITY_SERVICE=${OPTARG}
+           if [ "${SECURITY_SERVICE}" == "all" ]
+           then
+               for i_SECURITY_SERVICE in ${List_SECURITY[*]}
+               do
+                   if [ "${i_SECURITY_SERVICE}" != "all" ]
+                   then
+                       echo ${i_SECURITY_SERVICE} >> /tmp/security_service.txt
+                   fi
+               done
+           else
+               echo ${i_SECURITY_SERVICE} >> /tmp/security_service.txt
+           fi
+           ;;
         u) rm -f $0
            curl -so build.sh ${GITHUB_LINK}/build.sh
            chmod 755 build.sh
            exit 0
            ;;
         w) GET_WEB_SERVER=${OPTARG} ;;
-        h) _get_default_version
-           _show_help
+        h) _show_help
            exit 0
            ;;
         v) head -n 5 ${SCRIPT_NAME} | grep "^# Version:" | awk '{print $3}' ; exit 0 ;;
@@ -1436,7 +1509,6 @@ done
 _create_dir
 _start_install
 _check_network
-_get_default_version
 _check_control_panel
 _check_info
 _update_sys

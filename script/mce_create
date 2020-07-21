@@ -12,71 +12,42 @@ USER_DIR="/var/mce/user"
 GITHUB_LINK="https://raw.githubusercontent.com/mbrother2/buildmce/master/script"
 
 # Create directory if not exist
-create_dir(){
-    [ ! -d ${BASH_DIR} ] && mkdir -p ${BASH_DIR}
-    [ ! -d ${USER_DIR} ] && mkdir -p ${USER_DIR}
-}
+if [ ! -d ${BASH_DIR} ]
+then
+    mkdir -p ${BASH_DIR}
+fi
+if [ ! -d ${USER_DIR} ]
+then
+    mkdir -p ${USER_DIR}
+fi
 
 # Download script
-download_script(){
-    curl -o ${BASH_DIR}/advanced_option        ${GITHUB_LINK}/advanced_option
-    curl -o ${BASH_DIR}/auto_backup            ${GITHUB_LINK}/auto_backup
-    curl -o ${BASH_DIR}/backup_full            ${GITHUB_LINK}/backup_full
-    curl -o ${BASH_DIR}/backup_user            ${GITHUB_LINK}/backup_user
-    curl -o ${BASH_DIR}/change_domain          ${GITHUB_LINK}/change_domain
-    curl -o ${BASH_DIR}/change_language        ${GITHUB_LINK}/change_language
-    curl -o ${BASH_DIR}/change_password        ${GITHUB_LINK}/change_password
-    curl -o ${BASH_DIR}/change_php_version     ${GITHUB_LINK}/change_php_version
-    curl -o ${BASH_DIR}/check_service          ${GITHUB_LINK}/check_service
-    curl -o ${BASH_DIR}/check_value            ${GITHUB_LINK}/check_value
-    curl -o ${BASH_DIR}/clear_cache            ${GITHUB_LINK}/clear_cache
-    curl -o ${BASH_DIR}/create_database        ${GITHUB_LINK}/create_database
-    curl -o ${BASH_DIR}/create_full            ${GITHUB_LINK}/create_full
-    curl -o ${BASH_DIR}/create_ssl_letsencrypt ${GITHUB_LINK}/create_ssl_letsencrypt
-    curl -o ${BASH_DIR}/create_swap            ${GITHUB_LINK}/create_swap
-    curl -o ${BASH_DIR}/delete_user            ${GITHUB_LINK}/delete_user
-    curl -o ${BASH_DIR}/lang_en                ${GITHUB_LINK}/lang_en
-    curl -o ${BASH_DIR}/lang_vi                ${GITHUB_LINK}/lang_vi
-    curl -o ${BASH_DIR}/mce                    ${GITHUB_LINK}/mce
-    curl -o ${BASH_DIR}/rotate_log             ${GITHUB_LINK}/rotate_log
-    curl -o ${BASH_DIR}/restore_backup         ${GITHUB_LINK}/restore_backup
-    curl -o ${BASH_DIR}/show_info              ${GITHUB_LINK}/show_info
-    curl -o ${BASH_DIR}/update_service         ${GITHUB_LINK}/update_service
-    curl -o ${BASH_DIR}/variable_common        ${GITHUB_LINK}/variable_common
-}
-
-# Chmod script
-chmod_script(){
-    chmod 755 ${BASH_DIR}/advanced_option
-    chmod 755 ${BASH_DIR}/auto_backup
-    chmod 755 ${BASH_DIR}/backup_full
-    chmod 755 ${BASH_DIR}/backup_user
-    chmod 755 ${BASH_DIR}/change_domain
-    chmod 755 ${BASH_DIR}/change_language
-    chmod 755 ${BASH_DIR}/change_password
-    chmod 755 ${BASH_DIR}/change_php_version
-    chmod 755 ${BASH_DIR}/check_service
-    chmod 755 ${BASH_DIR}/check_value
-    chmod 755 ${BASH_DIR}/clear_cache
-    chmod 755 ${BASH_DIR}/create_database
-    chmod 755 ${BASH_DIR}/create_full
-    chmod 755 ${BASH_DIR}/create_ssl_letsencrypt
-    chmod 755 ${BASH_DIR}/create_swap
-    chmod 755 ${BASH_DIR}/delete_user
-    chmod 755 ${BASH_DIR}/lang_en
-    chmod 755 ${BASH_DIR}/lang_vi
-    [[ -f ${BASH_DIR}/lang ]] && rm -f ${BASH_DIR}/lang
-    ln -s ${BASH_DIR}/lang_${LANG} ${BASH_DIR}/lang
-    chmod 755 ${BASH_DIR}/mce
-    [ ! -f /usr/sbin/mce ] && ln -s ${BASH_DIR}/mce /usr/sbin/mce
-    chmod 755 ${BASH_DIR}/rotate_log
-    chmod 755 ${BASH_DIR}/restore_backup
-    chmod 755 ${BASH_DIR}/show_info
-    chmod 755 ${BASH_DIR}/update_service
-    chmod 755 ${BASH_DIR}/variable_common
-}
-
-create_dir
-download_script
-chmod_script
+for i in advanced_option \
+         auto_backup \
+         backup_full \
+         backup_user \
+         change_domain \
+         change_language \
+         change_password \
+         change_php_version \
+         check_service \
+         check_value \
+         clear_cache \
+         create_database \
+         create_full \
+         create_ssl_letsencrypt \
+         create_swap \
+         delete_user \
+         mce \
+         rotate_log \
+         restore_backup \
+         show_info \
+         update_service \
+         variable_common
+do
+    curl -so ${BASH_DIR}/$i ${GITHUB_LINK}/$i
+    chmod 755 ${BASH_DIR}/$i
+    echo ""
+done | pv -peWs22 >/dev/null
+ln -sf ${BASH_DIR}/mce /usr/sbin/mce
 echo "0 0 1 * * /var/mce/script/rotate_log" >> /var/spool/cron/root
